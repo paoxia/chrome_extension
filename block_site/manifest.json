@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "网站屏蔽工具",
+  "version": "1.0.0",
+  "description": "一键屏蔽当前网站，提高工作效率",
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "permissions": [
+    "activeTab",
+    "storage",
+    "declarativeNetRequest",
+    "tabs"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "ruleset_1",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  },
+  "host_permissions": [
+    "<all_urls>"
+  ]
+}
