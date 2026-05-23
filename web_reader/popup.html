@@ -14,6 +14,38 @@
       margin-top: 0;
       color: #333;
     }
+    h2 {
+      font-size: 14px;
+      margin: 15px 0 10px 0;
+      color: #666;
+    }
+    .config-section {
+      background: #f5f5f5;
+      padding: 10px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+    }
+    .form-group {
+      margin-bottom: 10px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    .form-group input:focus {
+      outline: none;
+      border-color: #4CAF50;
+    }
     button {
       width: 100%;
       padding: 10px;
@@ -32,11 +64,17 @@
       background-color: #cccccc;
       cursor: not-allowed;
     }
-    .test-btn {
+    .save-btn {
       background-color: #2196F3;
     }
-    .test-btn:hover {
+    .save-btn:hover {
       background-color: #0b7dda;
+    }
+    .test-btn {
+      background-color: #FF9800;
+    }
+    .test-btn:hover {
+      background-color: #e68a00;
     }
     #result {
       margin-top: 15px;
@@ -55,11 +93,39 @@
     .error {
       color: red;
     }
+    .success {
+      color: #4CAF50;
+    }
+    .hint {
+      font-size: 11px;
+      color: #999;
+      margin-top: 2px;
+    }
   </style>
 </head>
 <body>
   <h1>网页内容总结器</h1>
-  <button id="testBtn" class="test-btn">测试Ollama连接</button>
+  
+  <div class="config-section">
+    <h2>API 配置</h2>
+    <div class="form-group">
+      <label for="apiUrl">API 地址</label>
+      <input type="text" id="apiUrl" placeholder="例如: https://api.openai.com/v1">
+      <div class="hint">OpenAI 风格的 API 基础地址</div>
+    </div>
+    <div class="form-group">
+      <label for="apiKey">API Key</label>
+      <input type="password" id="apiKey" placeholder="输入你的 API Key">
+    </div>
+    <div class="form-group">
+      <label for="modelName">模型名称</label>
+      <input type="text" id="modelName" placeholder="例如: gpt-3.5-turbo, gpt-4">
+      <div class="hint">支持 OpenAI 兼容的模型名称</div>
+    </div>
+    <button id="saveBtn" class="save-btn">保存配置</button>
+  </div>
+  
+  <button id="testBtn" class="test-btn">测试 API 连接</button>
   <button id="summarizeBtn">总结当前网页</button>
   <div id="status"></div>
   <div id="result"></div>

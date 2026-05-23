@@ -1,78 +1,100 @@
-// 测试Ollama连接并获取可用模型列表
-async function testOllamaConnection() {
+async function getConfig() {
+  return new Promise((resolve) => {
+    chrome.storage.sync.get(['apiUrl', 'apiKey', 'modelName'], function(result) {
+      resolve({
+        apiUrl: result.apiUrl || '',
+        apiKey: result.apiKey || '',
+        modelName: result.modelName || ''
+      });
+    });
+  });
+}
+
+async function testApiConnection() {
   try {
-    const response = await fetch('http://localhost:11434/api/tags', {
-      method: 'GET'
+    const config = await getConfig();
+    
+    if (!config.apiUrl) {
+      throw new Error('请先配置 API 地址');
+    }
+    if (!config.apiKey) {
+      throw new Error('请先配置 API Key');
+    }
+    
+    const modelsUrl = config.apiUrl.replace(/\/$/, '') + '/models';
+    
+    const response = await fetch(modelsUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${config.apiKey}`,
+        'Content-Type': 'application/json'
+      }
     });
     
     if (!response.ok) {
-      throw new Error(`无法连接到Ollama服务: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`API 请求失败: ${response.status} - ${errorText}`);
     }
     
     const data = await response.json();
-    return data.models || [];
+    return data.data || [];
   } catch (error) {
-    console.error('测试Ollama连接失败:', error);
+    console.error('测试 API 连接失败:', error);
     throw error;
   }
 }
 
-// 获取可用的模型名称
-async function getAvailableModel() {
+async function summarizeWithOpenAI(content, title) {
   try {
-    const models = await testOllamaConnection();
-    if (!models || models.length === 0) {
-      throw new Error('未找到可用的模型，请先下载模型');
+    const config = await getConfig();
+    
+    if (!config.apiUrl) {
+      throw new Error('请先配置 API 地址');
+    }
+    if (!config.apiKey) {
+      throw new Error('请先配置 API Key');
+    }
+    if (!config.modelName) {
+      throw new Error('请先配置模型名称');
     }
     
-    // 优先选择中文模型（包含 qwen, llama, mistral 等常见模型）
-    const preferredModels = models.filter(m => {
-      const name = m.name.toLowerCase();
-      return name.includes('qwen') || name.includes('llama') || name.includes('mistral') || name.includes('chatglm');
-    });
+    console.log('开始调用 OpenAI API...');
+    console.log('API 地址:', config.apiUrl);
+    console.log('使用模型:', config.modelName);
     
-    // 如果有优先模型，使用第一个；否则使用第一个可用模型
-    const selectedModel = preferredModels.length > 0 ? preferredModels[0] : models[0];
-    console.log('选择的模型:', selectedModel.name);
-    return selectedModel.name;
-  } catch (error) {
-    console.error('获取模型列表失败:', error);
-    throw error;
-  }
-}
-
-// 与本地ollama API通信的函数
-async function summarizeWithOllama(content, title) {
-  try {
-    console.log('开始调用Ollama API...');
-    
-    // 先获取可用的模型
-    const modelName = await getAvailableModel();
-    console.log('使用模型:', modelName);
-    console.log('请求URL: http://localhost:11434/api/generate');
+    const chatUrl = config.apiUrl.replace(/\/$/, '') + '/chat/completions';
     
     const requestBody = {
-      model: modelName, 
-      prompt: `请用中文总结以下网页内容，标题为"${title}"：\n\n${content}`,
-      stream: false
+      model: config.modelName,
+      messages: [
+        {
+          role: 'system',
+          content: '你是一个专业的网页内容总结助手。请用中文总结用户提供的网页内容，提取关键信息，保持简洁明了。'
+        },
+        {
+          role: 'user',
+          content: `请用中文总结以下网页内容，标题为"${title}"：\n\n${content}`
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 2000
     };
     
-    console.log('请求体:', JSON.stringify(requestBody, null, 2));
+    console.log('请求 URL:', chatUrl);
     
-    const response = await fetch('http://localhost:11434/api/generate', {
+    const response = await fetch(chatUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
       },
       body: JSON.stringify(requestBody)
     });
     
     console.log('响应状态:', response.status, response.statusText);
-    console.log('响应头:', Object.fromEntries(response.headers.entries()));
     
     if (!response.ok) {
-      // 尝试获取错误详情
-      let errorMessage = `API请求失败: ${response.status}`;
+      let errorMessage = `API 请求失败: ${response.status}`;
       let errorDetail = '';
       
       try {
@@ -81,7 +103,7 @@ async function summarizeWithOllama(content, title) {
         if (errorData) {
           try {
             const errorJson = JSON.parse(errorData);
-            errorDetail = errorJson.error || errorData;
+            errorDetail = errorJson.error?.message || errorJson.error || errorData;
           } catch {
             errorDetail = errorData;
           }
@@ -91,32 +113,26 @@ async function summarizeWithOllama(content, title) {
         console.error('解析错误响应失败:', e);
       }
       
-      // 如果是403，提供更具体的提示
-      if (response.status === 403) {
-        errorMessage += `。使用的模型: ${modelName}。可能原因：1) 该模型不存在或未正确下载；2) 模型名称格式不正确；3) Ollama服务配置问题。请使用"测试Ollama连接"按钮查看可用的模型列表。`;
-      }
-      
       throw new Error(errorMessage);
     }
     
     const data = await response.json();
     console.log('响应数据:', data);
     
-    if (!data.response) {
-      throw new Error('Ollama API返回格式错误，未找到response字段。响应: ' + JSON.stringify(data));
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      throw new Error('API 返回格式错误，未找到有效的响应内容');
     }
-    return data.response;
+    
+    return data.choices[0].message.content;
   } catch (error) {
-    console.error('与Ollama通信失败:', error);
-    // 如果是网络错误，提供更友好的提示
+    console.error('与 API 通信失败:', error);
     if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError') || error.message.includes('ERR_')) {
-      throw new Error('无法连接到Ollama服务，请确保Ollama正在运行（http://localhost:11434）');
+      throw new Error('无法连接到 API 服务，请检查 API 地址是否正确');
     }
     throw error;
   }
 }
 
-// 将Chrome API回调转换为Promise的辅助函数
 function queryTabs(queryInfo) {
   return new Promise((resolve, reject) => {
     chrome.tabs.query(queryInfo, (tabs) => {
@@ -153,10 +169,8 @@ function sendMessageToTab(tabId, message) {
   });
 }
 
-// 处理总结页面的异步函数
 async function handleSummarizePage() {
   try {
-    // 获取当前标签页
     const tabs = await queryTabs({active: true, currentWindow: true});
     
     if (tabs.length === 0) {
@@ -165,12 +179,10 @@ async function handleSummarizePage() {
     
     const tab = tabs[0];
     
-    // 检查是否为chrome:// URL
     if (tab.url.startsWith('chrome://')) {
       return {error: '无法在Chrome内置页面上使用此插件'};
     }
     
-    // 先执行content script
     try {
       await executeScript({
         target: {tabId: tab.id},
@@ -180,7 +192,6 @@ async function handleSummarizePage() {
       return {error: '无法注入content script: ' + error.message};
     }
     
-    // 向content script发送消息，获取页面内容
     let pageContent;
     try {
       pageContent = await sendMessageToTab(tab.id, {action: 'getPageContent'});
@@ -192,9 +203,8 @@ async function handleSummarizePage() {
       return {error: '无法获取页面内容'};
     }
     
-    // 调用ollama进行总结
     try {
-      const summary = await summarizeWithOllama(pageContent.content, pageContent.title);
+      const summary = await summarizeWithOpenAI(pageContent.content, pageContent.title);
       return {summary: summary};
     } catch (error) {
       console.error('总结失败:', error);
@@ -206,11 +216,9 @@ async function handleSummarizePage() {
   }
 }
 
-// 监听来自popup的消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('收到消息:', message.action);
   
-  // 使用标志确保 sendResponse 只被调用一次
   let responded = false;
   const safeSendResponse = (response) => {
     if (!responded) {
@@ -223,18 +231,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
   };
   
-  // 测试Ollama连接
   if (message.action === 'testConnection') {
-    console.log('开始测试Ollama连接...');
-    // 使用 async 函数包装，确保正确处理
+    console.log('开始测试 API 连接...');
     (async () => {
       try {
-        const models = await testOllamaConnection();
+        const models = await testApiConnection();
         console.log('测试连接成功，找到模型:', models.length);
-        const modelNames = models.map(m => m.name).join(', ');
         safeSendResponse({
           success: true,
-          message: `连接成功！可用模型: ${modelNames || '无'}`,
+          message: `连接成功！`,
           models: models
         });
       } catch (error) {
@@ -245,13 +250,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
       }
     })();
-    return true; // 保持消息通道开放
+    return true;
   }
   
-  // 总结页面
   if (message.action === 'summarizePage') {
     console.log('开始处理总结请求...');
-    // 使用 async 函数包装，确保正确处理
     (async () => {
       try {
         const result = await handleSummarizePage();
@@ -264,10 +267,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
       }
     })();
-    return true; // 保持消息通道开放
+    return true;
   }
   
-  // 如果消息不匹配任何操作，返回错误
   console.warn('未知的操作:', message.action);
   safeSendResponse({error: '未知的操作: ' + message.action});
   return false;

@@ -1,10 +1,63 @@
 document.addEventListener('DOMContentLoaded', function() {
+  const saveBtn = document.getElementById('saveBtn');
   const testBtn = document.getElementById('testBtn');
   const summarizeBtn = document.getElementById('summarizeBtn');
   const statusDiv = document.getElementById('status');
   const resultDiv = document.getElementById('result');
+  const apiUrlInput = document.getElementById('apiUrl');
+  const apiKeyInput = document.getElementById('apiKey');
+  const modelNameInput = document.getElementById('modelName');
   
-  // 测试连接按钮
+  function loadConfig() {
+    chrome.storage.sync.get(['apiUrl', 'apiKey', 'modelName'], function(result) {
+      if (result.apiUrl) {
+        apiUrlInput.value = result.apiUrl;
+      }
+      if (result.apiKey) {
+        apiKeyInput.value = result.apiKey;
+      }
+      if (result.modelName) {
+        modelNameInput.value = result.modelName;
+      }
+    });
+  }
+  
+  loadConfig();
+  
+  saveBtn.addEventListener('click', function() {
+    const apiUrl = apiUrlInput.value.trim();
+    const apiKey = apiKeyInput.value.trim();
+    const modelName = modelNameInput.value.trim();
+    
+    if (!apiUrl) {
+      statusDiv.textContent = '请输入 API 地址';
+      statusDiv.className = 'error';
+      return;
+    }
+    
+    if (!apiKey) {
+      statusDiv.textContent = '请输入 API Key';
+      statusDiv.className = 'error';
+      return;
+    }
+    
+    if (!modelName) {
+      statusDiv.textContent = '请输入模型名称';
+      statusDiv.className = 'error';
+      return;
+    }
+    
+    chrome.storage.sync.set({
+      apiUrl: apiUrl,
+      apiKey: apiKey,
+      modelName: modelName
+    }, function() {
+      statusDiv.textContent = '配置已保存';
+      statusDiv.className = 'success';
+      resultDiv.textContent = '';
+    });
+  });
+  
   testBtn.addEventListener('click', function() {
     testBtn.disabled = true;
     statusDiv.textContent = '正在测试连接...';
@@ -14,7 +67,6 @@ document.addEventListener('DOMContentLoaded', function() {
     chrome.runtime.sendMessage({action: 'testConnection'}, function(response) {
       testBtn.disabled = false;
       
-      // 检查是否有运行时错误
       if (chrome.runtime.lastError) {
         const errorMsg = chrome.runtime.lastError.message;
         statusDiv.textContent = '错误：' + errorMsg;
@@ -27,7 +79,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
       
-      // 检查响应是否存在
       if (!response) {
         statusDiv.textContent = '错误：未收到响应';
         statusDiv.className = 'error';
@@ -37,33 +88,29 @@ document.addEventListener('DOMContentLoaded', function() {
       
       if (response.success) {
         statusDiv.textContent = response.message;
-        statusDiv.className = '';
+        statusDiv.className = 'success';
         if (response.models && response.models.length > 0) {
-          const modelList = response.models.map(m => `- ${m.name}`).join('\n');
+          const modelList = response.models.map(m => `- ${m.id}`).join('\n');
           resultDiv.textContent = `可用模型列表：\n${modelList}`;
         } else {
-          resultDiv.textContent = '未找到可用模型，请先下载模型。';
+          resultDiv.textContent = '连接成功';
         }
       } else {
         statusDiv.textContent = '连接失败：' + (response.error || '未知错误');
         statusDiv.className = 'error';
-        resultDiv.textContent = '请确保：\n1. Ollama服务正在运行\n2. 扩展已重新加载\n3. 检查浏览器控制台获取详细信息';
+        resultDiv.textContent = '请检查：\n1. API 地址是否正确\n2. API Key 是否有效\n3. 网络连接是否正常';
       }
     });
   });
   
   summarizeBtn.addEventListener('click', function() {
-    // 禁用按钮，显示加载状态
     summarizeBtn.disabled = true;
     statusDiv.textContent = '正在读取网页内容...';
     resultDiv.textContent = '';
     
-    // 向background发送消息，请求总结网页
     chrome.runtime.sendMessage({action: 'summarizePage'}, function(response) {
-      // 恢复按钮状态
       summarizeBtn.disabled = false;
       
-      // 检查是否有运行时错误
       if (chrome.runtime.lastError) {
         const errorMsg = chrome.runtime.lastError.message;
         statusDiv.textContent = '错误：' + errorMsg;
@@ -74,7 +121,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
       
-      // 检查响应是否存在
       if (!response) {
         statusDiv.textContent = '错误：未收到响应';
         statusDiv.className = 'error';
@@ -82,16 +128,13 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       
       if (response.error) {
-        // 显示错误信息
         statusDiv.textContent = '错误：' + response.error;
         statusDiv.className = 'error';
       } else if (response.summary) {
-        // 显示总结结果
         statusDiv.textContent = '总结完成';
-        statusDiv.className = '';
+        statusDiv.className = 'success';
         resultDiv.textContent = response.summary;
       } else {
-        // 显示未知错误
         statusDiv.textContent = '未知错误：未收到有效响应';
         statusDiv.className = 'error';
       }
