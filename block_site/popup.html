@@ -8,21 +8,22 @@
 </head>
 <body>
   <div class="container">
-    <h1>网站屏蔽工具</h1>
-    
-    <!-- 当前网站信息 -->
-    <div class="current-site-section">
-      <h2>当前网站</h2>
-      <div id="currentSite" class="current-site"></div>
-      <div class="button-group">
-        <button id="blockCurrentBtn" class="block-btn">屏蔽当前网站</button>
-        <button id="unblockCurrentBtn" class="unblock-btn" style="display: none;">移除屏蔽</button>
+    <div class="header">
+      <div class="logo">
+        <div class="logo-icon">🛡️</div>
+        <h1>网站屏蔽</h1>
       </div>
     </div>
     
-    <!-- 已屏蔽网站列表 -->
-    <div class="blocked-sites-section">
-      <h2>已屏蔽网站</h2>
+    <div class="section-card">
+      <div class="section-title">当前网站</div>
+      <div id="currentSite" class="current-site"></div>
+      <button id="blockCurrentBtn" class="primary-btn">屏蔽当前网站</button>
+      <button id="unblockCurrentBtn" class="secondary-btn" style="display: none;">移除屏蔽</button>
+    </div>
+    
+    <div class="section-card">
+      <div class="section-title">已屏蔽网站</div>
       <div id="blockedSitesList" class="blocked-sites-list"></div>
       <div id="noSitesMsg" class="no-sites-msg">暂无屏蔽网站</div>
     </div>
