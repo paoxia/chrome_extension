@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "网页内容总结器",
+  "name": "AI 阅读器",
   "version": "1.1",
-  "description": "读取当前网页内容并使用AI进行总结",
+  "description": "使用 AI 智能总结网页内容",
   "icons": {
     "128": "icon.png"
   },

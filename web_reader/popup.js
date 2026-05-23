@@ -6,13 +6,15 @@ document.addEventListener('DOMContentLoaded', function() {
   const summarizeBtn = document.getElementById('summarizeBtn');
   const statusDiv = document.getElementById('status');
   const resultDiv = document.getElementById('result');
-  const configStatus = document.getElementById('configStatus');
   const apiUrlInput = document.getElementById('apiUrl');
   const apiKeyInput = document.getElementById('apiKey');
   const modelNameInput = document.getElementById('modelName');
   
+  let currentConfig = {};
+  
   function loadConfig() {
     chrome.storage.sync.get(['apiUrl', 'apiKey', 'modelName'], function(result) {
+      currentConfig = result;
       if (result.apiUrl) {
         apiUrlInput.value = result.apiUrl;
       }
@@ -22,18 +24,11 @@ document.addEventListener('DOMContentLoaded', function() {
       if (result.modelName) {
         modelNameInput.value = result.modelName;
       }
-      updateConfigStatus(result);
     });
   }
   
-  function updateConfigStatus(config) {
-    if (config.apiUrl && config.apiKey && config.modelName) {
-      configStatus.textContent = '✓ 已配置';
-      configStatus.className = 'config-status configured';
-    } else {
-      configStatus.textContent = '✗ 未配置，请点击"API 配置"进行设置';
-      configStatus.className = 'config-status not-configured';
-    }
+  function checkConfig() {
+    return currentConfig.apiUrl && currentConfig.apiKey && currentConfig.modelName;
   }
   
   loadConfig();
@@ -79,10 +74,10 @@ document.addEventListener('DOMContentLoaded', function() {
       apiKey: apiKey,
       modelName: modelName
     }, function() {
+      currentConfig = {apiUrl, apiKey, modelName};
       statusDiv.textContent = '配置已保存';
       statusDiv.className = 'success';
       resultDiv.textContent = '';
-      updateConfigStatus({apiUrl, apiKey, modelName});
     });
   });
   
@@ -132,6 +127,12 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   
   summarizeBtn.addEventListener('click', function() {
+    if (!checkConfig()) {
+      statusDiv.textContent = '请先配置 API 信息（点击右上角"配置"按钮）';
+      statusDiv.className = 'error';
+      return;
+    }
+    
     summarizeBtn.disabled = true;
     statusDiv.textContent = '正在读取网页内容...';
     resultDiv.textContent = '';
