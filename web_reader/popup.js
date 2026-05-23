@@ -11,6 +11,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const modelNameInput = document.getElementById('modelName');
   
   let currentConfig = {};
+  let isProcessing = false;
+  let pollInterval = null;
   
   function loadConfig() {
     chrome.storage.sync.get(['apiUrl', 'apiKey', 'modelName'], function(result) {
@@ -31,7 +33,64 @@ document.addEventListener('DOMContentLoaded', function() {
     return currentConfig.apiUrl && currentConfig.apiKey && currentConfig.modelName;
   }
   
+  function checkTaskState() {
+    chrome.runtime.sendMessage({action: 'getTaskState'}, function(state) {
+      if (!state) {
+        return;
+      }
+      
+      if (state.status === 'processing') {
+        isProcessing = true;
+        summarizeBtn.disabled = true;
+        summarizeBtn.textContent = '处理中...';
+        statusDiv.textContent = '正在处理中，请稍候...';
+        statusDiv.className = '';
+        startPolling();
+      } else if (state.status === 'completed') {
+        statusDiv.textContent = '总结完成';
+        statusDiv.className = 'success';
+        resultDiv.textContent = state.result;
+      } else if (state.status === 'error') {
+        statusDiv.textContent = '错误：' + state.error;
+        statusDiv.className = 'error';
+      }
+    });
+  }
+  
+  function startPolling() {
+    if (pollInterval) {
+      clearInterval(pollInterval);
+    }
+    
+    pollInterval = setInterval(function() {
+      chrome.runtime.sendMessage({action: 'getTaskState'}, function(state) {
+        if (!state || state.status !== 'processing') {
+          stopPolling();
+          summarizeBtn.disabled = false;
+          summarizeBtn.textContent = '总结当前网页';
+          
+          if (state && state.status === 'completed') {
+            statusDiv.textContent = '总结完成';
+            statusDiv.className = 'success';
+            resultDiv.textContent = state.result;
+          } else if (state && state.status === 'error') {
+            statusDiv.textContent = '错误：' + state.error;
+            statusDiv.className = 'error';
+          }
+        }
+      });
+    }, 1000);
+  }
+  
+  function stopPolling() {
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      pollInterval = null;
+    }
+  }
+  
   loadConfig();
+  checkTaskState();
   
   configBtn.addEventListener('click', function() {
     const isShown = configSection.classList.contains('show');
@@ -133,40 +192,28 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     
-    summarizeBtn.disabled = true;
-    statusDiv.textContent = '正在读取网页内容...';
-    resultDiv.textContent = '';
+    if (isProcessing) {
+      return;
+    }
     
-    chrome.runtime.sendMessage({action: 'summarizePage'}, function(response) {
-      summarizeBtn.disabled = false;
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      const tab = tabs[0];
+      if (!tab) return;
       
-      if (chrome.runtime.lastError) {
-        const errorMsg = chrome.runtime.lastError.message;
-        statusDiv.textContent = '错误：' + errorMsg;
-        statusDiv.className = 'error';
-        if (errorMsg.includes('message port closed')) {
-          resultDiv.textContent = '消息通道已关闭。请确保：\n1. 扩展已正确加载\n2. 重新加载扩展后重试\n3. 检查Service Worker是否正常运行';
+      chrome.runtime.sendMessage({
+        action: 'startBackgroundSummarize',
+        tabId: tab.id
+      }, function(response) {
+        if (response && response.started) {
+          isProcessing = true;
+          summarizeBtn.disabled = true;
+          summarizeBtn.textContent = '处理中...';
+          statusDiv.textContent = '正在处理中，您可以关闭此窗口...';
+          statusDiv.className = '';
+          resultDiv.textContent = '';
+          startPolling();
         }
-        return;
-      }
-      
-      if (!response) {
-        statusDiv.textContent = '错误：未收到响应';
-        statusDiv.className = 'error';
-        return;
-      }
-      
-      if (response.error) {
-        statusDiv.textContent = '错误：' + response.error;
-        statusDiv.className = 'error';
-      } else if (response.summary) {
-        statusDiv.textContent = '总结完成';
-        statusDiv.className = 'success';
-        resultDiv.textContent = response.summary;
-      } else {
-        statusDiv.textContent = '未知错误：未收到有效响应';
-        statusDiv.className = 'error';
-      }
+      });
     });
   });
 });

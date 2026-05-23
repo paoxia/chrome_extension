@@ -169,15 +169,26 @@ function sendMessageToTab(tabId, message) {
   });
 }
 
-async function handleSummarizePage() {
+async function handleSummarizePage(tabId) {
   try {
-    const tabs = await queryTabs({active: true, currentWindow: true});
-    
-    if (tabs.length === 0) {
-      return {error: '无法获取当前标签页'};
+    let tab;
+    if (tabId) {
+      tab = await new Promise((resolve, reject) => {
+        chrome.tabs.get(tabId, (t) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve(t);
+          }
+        });
+      });
+    } else {
+      const tabs = await queryTabs({active: true, currentWindow: true});
+      if (tabs.length === 0) {
+        return {error: '无法获取当前标签页'};
+      }
+      tab = tabs[0];
     }
-    
-    const tab = tabs[0];
     
     if (tab.url.startsWith('chrome://')) {
       return {error: '无法在Chrome内置页面上使用此插件'};
@@ -205,7 +216,7 @@ async function handleSummarizePage() {
     
     try {
       const summary = await summarizeWithOpenAI(pageContent.content, pageContent.title);
-      return {summary: summary};
+      return {summary: summary, title: pageContent.title};
     } catch (error) {
       console.error('总结失败:', error);
       return {error: error.message};
@@ -213,6 +224,39 @@ async function handleSummarizePage() {
   } catch (error) {
     console.error('处理总结请求失败:', error);
     return {error: error.message};
+  }
+}
+
+function saveTaskState(state) {
+  chrome.storage.local.set({taskState: state});
+}
+
+function clearTaskState() {
+  chrome.storage.local.remove(['taskState']);
+}
+
+async function startBackgroundSummarize(tabId) {
+  saveTaskState({
+    status: 'processing',
+    startTime: Date.now(),
+    tabId: tabId
+  });
+  
+  const result = await handleSummarizePage(tabId);
+  
+  if (result.summary) {
+    saveTaskState({
+      status: 'completed',
+      startTime: Date.now(),
+      result: result.summary,
+      title: result.title
+    });
+  } else {
+    saveTaskState({
+      status: 'error',
+      startTime: Date.now(),
+      error: result.error || '未知错误'
+    });
   }
 }
 
@@ -257,7 +301,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('开始处理总结请求...');
     (async () => {
       try {
-        const result = await handleSummarizePage();
+        const result = await handleSummarizePage(message.tabId);
         console.log('总结完成');
         safeSendResponse(result);
       } catch (error) {
@@ -267,6 +311,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
       }
     })();
+    return true;
+  }
+  
+  if (message.action === 'startBackgroundSummarize') {
+    console.log('开始后台总结任务...');
+    startBackgroundSummarize(message.tabId);
+    safeSendResponse({started: true});
+    return true;
+  }
+  
+  if (message.action === 'getTaskState') {
+    chrome.storage.local.get(['taskState'], (result) => {
+      safeSendResponse(result.taskState || null);
+    });
+    return true;
+  }
+  
+  if (message.action === 'clearTaskState') {
+    clearTaskState();
+    safeSendResponse({cleared: true});
     return true;
   }
   
