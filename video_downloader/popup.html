@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>视频下载助手</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🎬 视频下载助手</h1>
+      <p class="subtitle">提取页面视频，迅雷下载</p>
+    </header>
+    
+    <div class="actions">
+      <button id="scanBtn" class="btn btn-primary">
+        <span class="icon">🔍</span>
+        扫描当前页面
+      </button>
+      <button id="clearBtn" class="btn btn-secondary">
+        <span class="icon">🗑️</span>
+        清空列表
+      </button>
+    </div>
+    
+    <div class="stats">
+      <span>检测到 <strong id="videoCount">0</strong> 个视频资源</span>
+    </div>
+    
+    <div class="video-list" id="videoList">
+      <div class="empty-state">
+        <span class="empty-icon">📭</span>
+        <p>点击"扫描当前页面"检测视频</p>
+      </div>
+    </div>
+    
+    <div class="batch-actions" id="batchActions" style="display: none;">
+      <button id="downloadAllBtn" class="btn btn-success">
+        <span class="icon">⚡</span>
+        迅雷批量下载
+      </button>
+    </div>
+    
+    <div class="tips">
+      <p>💡 提示：点击视频卡片可单独下载，勾选后可批量下载</p>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

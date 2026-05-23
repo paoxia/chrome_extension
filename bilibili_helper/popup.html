@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Bilibili 助手</title>
+  <style>
+    body {
+      width: 350px;
+      padding: 15px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    h1 {
+      font-size: 18px;
+      margin: 0 0 15px 0;
+      color: #fb7299;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section {
+      background: #f5f5f5;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: 14px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 10px;
+    }
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .status-label {
+      font-size: 13px;
+      color: #666;
+    }
+    .status-value {
+      font-size: 13px;
+      font-weight: bold;
+      color: #333;
+    }
+    .status-value.success {
+      color: #52c41a;
+    }
+    .status-value.error {
+      color: #ff4d4f;
+    }
+    .status-value.pending {
+      color: #faad14;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 8px;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: #fb7299;
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #e85d84;
+    }
+    .btn-secondary {
+      background: #1890ff;
+      color: white;
+    }
+    .btn-secondary:hover {
+      background: #40a9ff;
+    }
+    .btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .log-area {
+      max-height: 150px;
+      overflow-y: auto;
+      font-size: 12px;
+      color: #666;
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 4px;
+      padding: 8px;
+      margin-top: 10px;
+    }
+    .log-item {
+      margin-bottom: 4px;
+      padding: 2px 0;
+    }
+    .log-item.success {
+      color: #52c41a;
+    }
+    .log-item.error {
+      color: #ff4d4f;
+    }
+    .video-count {
+      font-size: 24px;
+      font-weight: bold;
+      color: #fb7299;
+      text-align: center;
+      margin: 10px 0;
+    }
+    .hint {
+      font-size: 11px;
+      color: #999;
+      text-align: center;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>
+    <span>📺</span>
+    <span>Bilibili 助手</span>
+  </h1>
+  
+  <div class="section">
+    <div class="section-title">📅 签到状态</div>
+    <div class="status-row">
+      <span class="status-label">今日签到</span>
+      <span class="status-value" id="checkinStatus">未签到</span>
+    </div>
+    <div class="status-row">
+      <span class="status-label">连续签到</span>
+      <span class="status-value" id="checkinDays">0 天</span>
+    </div>
+    <button id="checkinBtn" class="btn-primary">立即签到</button>
+  </div>
+  
+  <div class="section">
+    <div class="section-title">⏰ 稍后观看</div>
+    <div class="video-count" id="videoCount">0</div>
+    <div class="hint">两天内未观看的视频数量</div>
+    <button id="addWatchLaterBtn" class="btn-secondary">一键添加到稍后观看</button>
+  </div>
+  
+  <div class="log-area" id="logArea"></div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

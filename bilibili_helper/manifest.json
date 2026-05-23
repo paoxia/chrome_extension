@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "Bilibili 助手",
+  "version": "1.0.0",
+  "description": "Bilibili 自动签到和稍后观看管理工具",
+  "icons": {
+    "128": "icon.png"
+  },
+  "permissions": [
+    "activeTab",
+    "storage",
+    "cookies",
+    "alarms",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://api.bilibili.com/*",
+    "https://www.bilibili.com/*",
+    "https://passport.bilibili.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.bilibili.com/*"],
+      "js": ["content.js"]
+    }
+  ]
+}

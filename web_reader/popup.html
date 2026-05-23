@@ -14,6 +14,29 @@
       margin-top: 0;
       color: #333;
     }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .config-btn {
+      background-color: transparent;
+      color: #666;
+      font-size: 12px;
+      padding: 4px 8px;
+      width: auto;
+      margin: 0;
+      border: 1px solid #ddd;
+    }
+    .config-btn:hover {
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    .config-btn.active {
+      background-color: #e8e8e8;
+      color: #333;
+    }
     h2 {
       font-size: 14px;
       margin: 15px 0 10px 0;
@@ -24,6 +47,10 @@
       padding: 10px;
       border-radius: 4px;
       margin-bottom: 10px;
+      display: none;
+    }
+    .config-section.show {
+      display: block;
     }
     .form-group {
       margin-bottom: 10px;
@@ -101,12 +128,28 @@
       color: #999;
       margin-top: 2px;
     }
+    .config-status {
+      font-size: 12px;
+      color: #999;
+      margin-bottom: 10px;
+    }
+    .config-status.configured {
+      color: #4CAF50;
+    }
+    .config-status.not-configured {
+      color: #ff9800;
+    }
   </style>
 </head>
 <body>
-  <h1>网页内容总结器</h1>
+  <div class="header">
+    <h1>网页内容总结器</h1>
+    <button id="configBtn" class="config-btn">⚙️ 配置</button>
+  </div>
   
-  <div class="config-section">
+  <div class="config-status" id="configStatus">检测配置中...</div>
+  
+  <div class="config-section" id="configSection">
     <h2>API 配置</h2>
     <div class="form-group">
       <label for="apiUrl">API 地址</label>
@@ -123,9 +166,9 @@
       <div class="hint">支持 OpenAI 兼容的模型名称</div>
     </div>
     <button id="saveBtn" class="save-btn">保存配置</button>
+    <button id="testBtn" class="test-btn">测试 API 连接</button>
   </div>
   
-  <button id="testBtn" class="test-btn">测试 API 连接</button>
   <button id="summarizeBtn">总结当前网页</button>
   <div id="status"></div>
   <div id="result"></div>

@@ -1,9 +1,12 @@
 document.addEventListener('DOMContentLoaded', function() {
+  const configBtn = document.getElementById('configBtn');
+  const configSection = document.getElementById('configSection');
   const saveBtn = document.getElementById('saveBtn');
   const testBtn = document.getElementById('testBtn');
   const summarizeBtn = document.getElementById('summarizeBtn');
   const statusDiv = document.getElementById('status');
   const resultDiv = document.getElementById('result');
+  const configStatus = document.getElementById('configStatus');
   const apiUrlInput = document.getElementById('apiUrl');
   const apiKeyInput = document.getElementById('apiKey');
   const modelNameInput = document.getElementById('modelName');
@@ -19,10 +22,34 @@ document.addEventListener('DOMContentLoaded', function() {
       if (result.modelName) {
         modelNameInput.value = result.modelName;
       }
+      updateConfigStatus(result);
     });
   }
   
+  function updateConfigStatus(config) {
+    if (config.apiUrl && config.apiKey && config.modelName) {
+      configStatus.textContent = '✓ 已配置';
+      configStatus.className = 'config-status configured';
+    } else {
+      configStatus.textContent = '✗ 未配置，请点击"API 配置"进行设置';
+      configStatus.className = 'config-status not-configured';
+    }
+  }
+  
   loadConfig();
+  
+  configBtn.addEventListener('click', function() {
+    const isShown = configSection.classList.contains('show');
+    if (isShown) {
+      configSection.classList.remove('show');
+      configBtn.classList.remove('active');
+      configBtn.textContent = '⚙️ 配置';
+    } else {
+      configSection.classList.add('show');
+      configBtn.classList.add('active');
+      configBtn.textContent = '⚙️ 收起';
+    }
+  });
   
   saveBtn.addEventListener('click', function() {
     const apiUrl = apiUrlInput.value.trim();
@@ -55,6 +82,7 @@ document.addEventListener('DOMContentLoaded', function() {
       statusDiv.textContent = '配置已保存';
       statusDiv.className = 'success';
       resultDiv.textContent = '';
+      updateConfigStatus({apiUrl, apiKey, modelName});
     });
   });
   
