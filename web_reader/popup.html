@@ -4,161 +4,315 @@
   <meta charset="UTF-8">
   <title>AI 阅读器</title>
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
     body {
-      width: 400px;
-      padding: 15px;
-      font-family: Arial, sans-serif;
+      width: 360px;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+      background: #f5f5f7;
+      color: #1d1d1f;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
-    h1 {
-      font-size: 18px;
-      margin-top: 0;
-      color: #333;
+    
+    .container {
+      padding: 24px 20px;
     }
+    
     .header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 10px;
+      margin-bottom: 24px;
     }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 2px 8px rgba(0, 122, 255, 0.25);
+    }
+    
+    h1 {
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+      color: #1d1d1f;
+    }
+    
     .config-btn {
-      background-color: transparent;
-      color: #666;
-      font-size: 12px;
-      padding: 4px 8px;
+      background: transparent;
+      color: #007AFF;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 6px 12px;
       width: auto;
       margin: 0;
-      border: 1px solid #ddd;
+      border: none;
+      border-radius: 6px;
+      transition: background 0.2s ease;
     }
+    
     .config-btn:hover {
-      background-color: #f5f5f5;
-      color: #333;
+      background: rgba(0, 122, 255, 0.1);
     }
+    
     .config-btn.active {
-      background-color: #e8e8e8;
-      color: #333;
+      background: #007AFF;
+      color: #fff;
     }
-    h2 {
-      font-size: 14px;
-      margin: 15px 0 10px 0;
-      color: #666;
-    }
+    
     .config-section {
-      background: #f5f5f5;
-      padding: 10px;
-      border-radius: 4px;
-      margin-bottom: 10px;
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 16px;
       display: none;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     }
+    
     .config-section.show {
       display: block;
+      animation: fadeIn 0.25s ease;
     }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .config-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #86868b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+    }
+    
     .form-group {
-      margin-bottom: 10px;
+      margin-bottom: 16px;
     }
+    
+    .form-group:last-of-type {
+      margin-bottom: 0;
+    }
+    
     .form-group label {
       display: block;
-      font-size: 12px;
-      color: #666;
-      margin-bottom: 4px;
+      font-size: 13px;
+      color: #1d1d1f;
+      font-weight: 500;
+      margin-bottom: 6px;
     }
+    
     .form-group input {
       width: 100%;
-      padding: 8px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 14px;
-      box-sizing: border-box;
+      padding: 10px 12px;
+      background: #f5f5f7;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      font-size: 15px;
+      color: #1d1d1f;
+      transition: all 0.2s ease;
     }
+    
+    .form-group input::placeholder {
+      color: #86868b;
+    }
+    
     .form-group input:focus {
       outline: none;
-      border-color: #4CAF50;
+      background: #fff;
+      border-color: #007AFF;
+      box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
     }
+    
+    .hint {
+      font-size: 12px;
+      color: #86868b;
+      margin-top: 4px;
+    }
+    
+    .btn-group {
+      display: flex;
+      gap: 8px;
+      margin-top: 20px;
+    }
+    
+    .btn-group button {
+      flex: 1;
+    }
+    
     button {
       width: 100%;
-      padding: 10px;
-      background-color: #4CAF50;
-      color: white;
+      padding: 12px 20px;
       border: none;
-      border-radius: 4px;
+      border-radius: 10px;
       cursor: pointer;
-      font-size: 16px;
-      margin-bottom: 10px;
+      font-size: 15px;
+      font-weight: 500;
+      transition: all 0.2s ease;
     }
-    button:hover {
-      background-color: #45a049;
+    
+    .primary-btn {
+      background: #007AFF;
+      color: #fff;
     }
-    button:disabled {
-      background-color: #cccccc;
-      cursor: not-allowed;
+    
+    .primary-btn:hover {
+      background: #0066d6;
     }
+    
+    .primary-btn:active {
+      transform: scale(0.98);
+    }
+    
+    .secondary-btn {
+      background: #f5f5f7;
+      color: #007AFF;
+    }
+    
+    .secondary-btn:hover {
+      background: #e8e8ed;
+    }
+    
     .save-btn {
-      background-color: #2196F3;
+      background: #34C759;
+      color: #fff;
     }
+    
     .save-btn:hover {
-      background-color: #0b7dda;
+      background: #2db84e;
     }
+    
     .test-btn {
-      background-color: #FF9800;
+      background: #f5f5f7;
+      color: #1d1d1f;
     }
+    
     .test-btn:hover {
-      background-color: #e68a00;
+      background: #e8e8ed;
     }
+    
+    button:disabled {
+      background: #d1d1d6;
+      color: #86868b;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    #status {
+      margin-top: 16px;
+      font-size: 14px;
+      color: #86868b;
+      text-align: center;
+      min-height: 20px;
+    }
+    
+    .error {
+      color: #FF3B30;
+    }
+    
+    .success {
+      color: #34C759;
+    }
+    
     #result {
-      margin-top: 15px;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      max-height: 300px;
+      margin-top: 16px;
+      padding: 16px;
+      background: #fff;
+      border-radius: 12px;
+      max-height: 240px;
       overflow-y: auto;
       white-space: pre-wrap;
-    }
-    #status {
-      margin-top: 10px;
       font-size: 14px;
-      color: #666;
+      line-height: 1.6;
+      color: #1d1d1f;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     }
-    .error {
-      color: red;
+    
+    #result::-webkit-scrollbar {
+      width: 6px;
     }
-    .success {
-      color: #4CAF50;
+    
+    #result::-webkit-scrollbar-track {
+      background: transparent;
     }
-    .hint {
-      font-size: 11px;
-      color: #999;
-      margin-top: 2px;
+    
+    #result::-webkit-scrollbar-thumb {
+      background: #d1d1d6;
+      border-radius: 3px;
+    }
+    
+    .divider {
+      height: 1px;
+      background: #e5e5ea;
+      margin: 16px 0;
+    }
+    
+    .section-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>AI 阅读器</h1>
-    <button id="configBtn" class="config-btn">⚙️ 配置</button>
+  <div class="container">
+    <div class="header">
+      <div class="logo">
+        <div class="logo-icon">🤖</div>
+        <h1>AI 阅读器</h1>
+      </div>
+      <button id="configBtn" class="config-btn">配置</button>
+    </div>
+    
+    <div class="config-section" id="configSection">
+      <div class="config-title">API 配置</div>
+      <div class="form-group">
+        <label for="apiUrl">API 地址</label>
+        <input type="text" id="apiUrl" placeholder="https://api.openai.com/v1">
+        <div class="hint">OpenAI 风格的 API 基础地址</div>
+      </div>
+      <div class="form-group">
+        <label for="apiKey">API Key</label>
+        <input type="password" id="apiKey" placeholder="输入你的 API Key">
+      </div>
+      <div class="form-group">
+        <label for="modelName">模型名称</label>
+        <input type="text" id="modelName" placeholder="gpt-3.5-turbo, gpt-4">
+        <div class="hint">支持 OpenAI 兼容的模型名称</div>
+      </div>
+      <div class="btn-group">
+        <button id="saveBtn" class="save-btn">保存</button>
+        <button id="testBtn" class="test-btn">测试连接</button>
+      </div>
+    </div>
+    
+    <div class="section-card">
+      <button id="summarizeBtn" class="primary-btn">总结当前网页</button>
+    </div>
+    
+    <div id="status"></div>
+    <div id="result"></div>
   </div>
-  
-  <div class="config-section" id="configSection">
-    <h2>API 配置</h2>
-    <div class="form-group">
-      <label for="apiUrl">API 地址</label>
-      <input type="text" id="apiUrl" placeholder="例如: https://api.openai.com/v1">
-      <div class="hint">OpenAI 风格的 API 基础地址</div>
-    </div>
-    <div class="form-group">
-      <label for="apiKey">API Key</label>
-      <input type="password" id="apiKey" placeholder="输入你的 API Key">
-    </div>
-    <div class="form-group">
-      <label for="modelName">模型名称</label>
-      <input type="text" id="modelName" placeholder="例如: gpt-3.5-turbo, gpt-4">
-      <div class="hint">支持 OpenAI 兼容的模型名称</div>
-    </div>
-    <button id="saveBtn" class="save-btn">保存配置</button>
-    <button id="testBtn" class="test-btn">测试 API 连接</button>
-  </div>
-  
-  <button id="summarizeBtn">总结当前网页</button>
-  <div id="status"></div>
-  <div id="result"></div>
   <script src="popup.js"></script>
 </body>
 </html>
