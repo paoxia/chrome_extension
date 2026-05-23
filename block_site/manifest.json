@@ -3,8 +3,12 @@
   "name": "网站屏蔽工具",
   "version": "1.0.0",
   "description": "一键屏蔽当前网站，提高工作效率",
+  "icons": {
+    "128": "icon.png"
+  },
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
   },
   "permissions": [
     "activeTab",
