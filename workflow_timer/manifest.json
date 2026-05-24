@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "工作流倒计时",
+  "version": "1.0.0",
+  "description": "支持多步骤工作流的倒计时工具",
+  "icons": {
+    "128": "icon.png"
+  },
+  "permissions": [
+    "storage",
+    "alarms",
+    "notifications",
+    "offscreen"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>工作流倒计时</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">
+        <div class="logo-icon">⏱️</div>
+        <h1>工作流倒计时</h1>
+      </div>
+    </div>
+    
+    <div id="workflowListView">
+      <div class="section-card">
+        <div class="section-header">
+          <span class="section-title">我的工作流</span>
+          <button id="addWorkflowBtn" class="icon-btn">+ 新建</button>
+        </div>
+        <div id="workflowList" class="workflow-list"></div>
+        <div id="noWorkflowMsg" class="empty-msg">暂无工作流，点击"新建"创建</div>
+      </div>
+    </div>
+    
+    <div id="workflowEditView" style="display: none;">
+      <div class="section-card">
+        <div class="section-header">
+          <button id="backToListBtn" class="back-btn">← 返回</button>
+          <span class="section-title" id="editTitle">新建工作流</span>
+        </div>
+        
+        <div class="form-group">
+          <label>工作流名称</label>
+          <input type="text" id="workflowName" placeholder="例如：代码发布流程">
+        </div>
+        
+        <div class="steps-section">
+          <div class="section-header">
+            <span class="section-title">步骤列表</span>
+            <button id="addStepBtn" class="icon-btn">+ 添加步骤</button>
+          </div>
+          <div id="stepsList" class="steps-list"></div>
+        </div>
+        
+        <div class="btn-group">
+          <button id="saveWorkflowBtn" class="primary-btn">保存工作流</button>
+          <button id="deleteWorkflowBtn" class="danger-btn" style="display: none;">删除</button>
+        </div>
+      </div>
+    </div>
+    
+    <div id="timerView" style="display: none;">
+      <div class="section-card">
+        <div class="section-header">
+          <button id="backFromTimerBtn" class="back-btn">← 返回</button>
+          <span class="section-title" id="timerWorkflowName"></span>
+        </div>
+        
+        <div class="timer-display">
+          <div class="current-step" id="currentStepName">准备开始</div>
+          <div class="timer-num" id="timerDisplay">00:00</div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <div class="step-progress" id="stepProgress">步骤 0/0</div>
+        </div>
+        
+        <div class="timer-controls">
+          <button id="startBtn" class="primary-btn">开始</button>
+          <button id="pauseBtn" class="secondary-btn" style="display: none;">暂停</button>
+          <button id="skipBtn" class="secondary-btn" style="display: none;">跳过</button>
+          <button id="resetBtn" class="danger-btn">重置</button>
+        </div>
+        
+        <div class="steps-timeline" id="stepsTimeline"></div>
+      </div>
+    </div>
+  </div>
+  
+  <div id="stepModal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span class="modal-title" id="stepModalTitle">添加步骤</span>
+      </div>
+      <div class="form-group">
+        <label>步骤名称</label>
+        <input type="text" id="stepName" placeholder="例如：第一批发布">
+      </div>
+      <div class="form-group">
+        <label>时长（分钟）</label>
+        <input type="number" id="stepDuration" placeholder="5" min="1" max="999">
+      </div>
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="stepManual">
+          需要手动确认（不计入倒计时）
+        </label>
+      </div>
+      <div class="modal-btns">
+        <button id="cancelStepBtn" class="secondary-btn">取消</button>
+        <button id="confirmStepBtn" class="primary-btn">确认</button>
+      </div>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
