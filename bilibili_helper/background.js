@@ -1,7 +1,6 @@
 const BILIBILI_API = {
   checkin: 'https://api.bilibili.com/x/web-interface/coin/today/add',
-  userInfo: 'https://api.bilibili.com/x/space/acc/info',
-  getCoins: 'https://api.bilibili.com/x/member/web/coin/log',
+  navInfo: 'https://api.bilibili.com/x/web-interface/nav',
   followings: 'https://api.bilibili.com/x/relation/followings',
   videos: 'https://api.bilibili.com/x/space/wbi/arc/search',
   watchLater: 'https://api.bilibili.com/x/v2/history/toview/add'
@@ -20,6 +19,18 @@ async function checkLogin() {
   return !!sessdata;
 }
 
+async function getCsrfToken() {
+  return await getCookie('bili_jct');
+}
+
+function getCommonHeaders() {
+  return {
+    'Content-Type': 'application/x-www-form-urlencoded',
+    'Referer': 'https://www.bilibili.com/',
+    'Origin': 'https://www.bilibili.com'
+  };
+}
+
 async function doCheckin() {
   try {
     const isLoggedIn = await checkLogin();
@@ -27,15 +38,26 @@ async function doCheckin() {
       return {success: false, error: '请先登录 Bilibili'};
     }
     
+    const csrf = await getCsrfToken();
+    if (!csrf) {
+      return {success: false, error: '无法获取 CSRF Token，请确保已登录 Bilibili'};
+    }
+    
     const response = await fetch(BILIBILI_API.checkin, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      credentials: 'include'
+      headers: getCommonHeaders(),
+      credentials: 'include',
+      body: `coins=1&csrf=${csrf}`
     });
     
-    const data = await response.json();
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      console.error('响应不是 JSON:', text.substring(0, 200));
+      return {success: false, error: 'API 返回格式错误，请确保已登录 Bilibili'};
+    }
     
     if (data.code === 0) {
       const today = new Date().toDateString();
@@ -52,6 +74,8 @@ async function doCheckin() {
       return result;
     } else if (data.code === -111) {
       return {success: false, error: '请先登录 Bilibili'};
+    } else if (data.code === -400) {
+      return {success: false, error: '今日已签到或投币数量已达上限'};
     } else {
       return {success: false, error: data.message || '签到失败'};
     }
@@ -69,10 +93,19 @@ async function getFollowings() {
     }
     
     const response = await fetch(`${BILIBILI_API.followings}?vmid=${vmid}&pn=1&ps=50`, {
+      headers: getCommonHeaders(),
       credentials: 'include'
     });
     
-    const data = await response.json();
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      console.error('响应不是 JSON:', text.substring(0, 200));
+      return [];
+    }
+    
     if (data.code === 0 && data.data && data.data.list) {
       return data.data.list.map(item => item.mid);
     }
@@ -85,10 +118,20 @@ async function getFollowings() {
 
 async function getUserId() {
   try {
-    const response = await fetch(BILIBILI_API.userInfo, {
+    const response = await fetch(BILIBILI_API.navInfo, {
+      headers: getCommonHeaders(),
       credentials: 'include'
     });
-    const data = await response.json();
+    
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      console.error('响应不是 JSON:', text.substring(0, 200));
+      return null;
+    }
+    
     if (data.code === 0 && data.data) {
       return data.data.mid;
     }
@@ -103,10 +146,19 @@ async function getRecentVideos(mid) {
   try {
     const twoDaysAgo = Date.now() - 2 * 24 * 60 * 60 * 1000;
     const response = await fetch(`${BILIBILI_API.videos}?mid=${mid}&ps=30&order=pubdate`, {
+      headers: getCommonHeaders(),
       credentials: 'include'
     });
     
-    const data = await response.json();
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      console.error('响应不是 JSON:', text.substring(0, 200));
+      return [];
+    }
+    
     if (data.code === 0 && data.data && data.data.list && data.data.list.vlist) {
       return data.data.list.vlist
         .filter(video => video.created * 1000 > twoDaysAgo)
@@ -125,16 +177,26 @@ async function getRecentVideos(mid) {
 
 async function addToWatchLater(aid) {
   try {
+    const csrf = await getCsrfToken();
+    if (!csrf) {
+      return false;
+    }
+    
     const response = await fetch(BILIBILI_API.watchLater, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: `aid=${aid}`,
+      headers: getCommonHeaders(),
+      body: `aid=${aid}&csrf=${csrf}`,
       credentials: 'include'
     });
     
-    const data = await response.json();
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      return false;
+    }
+    
     return data.code === 0;
   } catch (error) {
     console.error('添加稍后观看失败:', error);
