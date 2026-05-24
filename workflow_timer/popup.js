@@ -29,26 +29,49 @@ function loadWorkflows() {
 
 function checkRunningTimer() {
   chrome.storage.local.get(['runningTimer'], (result) => {
-    if (result.runningTimer && result.runningTimer.isRunning) {
+    if (result.runningTimer && result.runningTimer.workflowId) {
       const wf = workflows.find(w => w.id === result.runningTimer.workflowId);
       if (wf) {
         currentWorkflow = wf;
         timerState.currentStepIndex = result.runningTimer.stepIndex;
-        timerState.isRunning = true;
-        
-        const step = currentWorkflow.steps[timerState.currentStepIndex];
-        if (step && !step.manual) {
-          timerState.totalSeconds = step.duration * 60;
-        }
-        
-        showTimerView();
         
         chrome.runtime.sendMessage({action: 'getTimerState'}, (state) => {
-          if (state && state.remainingSeconds > 0) {
+          if (state && state.isRunning && state.remainingSeconds > 0) {
+            timerState.isRunning = true;
             timerState.remainingSeconds = state.remainingSeconds;
+            const step = currentWorkflow.steps[timerState.currentStepIndex];
+            if (step && !step.manual) {
+              timerState.totalSeconds = step.duration * 60;
+            }
+            showTimerView();
             updateTimerDisplay();
+            startPolling();
+          } else {
+            timerState.currentStepIndex++;
+            timerState.isRunning = false;
+            timerState.remainingSeconds = 0;
+            
+            if (timerState.currentStepIndex >= currentWorkflow.steps.length) {
+              chrome.storage.local.remove(['runningTimer']);
+              showListView();
+            } else {
+              chrome.storage.local.set({
+                runningTimer: {
+                  isRunning: false,
+                  workflowId: result.runningTimer.workflowId,
+                  stepIndex: timerState.currentStepIndex
+                }
+              });
+              
+              const step = currentWorkflow.steps[timerState.currentStepIndex];
+              if (step && !step.manual) {
+                timerState.totalSeconds = step.duration * 60;
+                timerState.remainingSeconds = step.duration * 60;
+              }
+              showTimerView();
+              updateTimerDisplay();
+            }
           }
-          startPolling();
         });
       }
     }
@@ -464,6 +487,8 @@ function nextStep() {
   timerState.currentStepIndex++;
   timerState.isRunning = false;
   timerState.isPaused = false;
+  
+  chrome.runtime.sendMessage({action: 'stepCompleted'});
   
   if (timerState.currentStepIndex >= currentWorkflow.steps.length) {
     chrome.storage.local.remove(['runningTimer']);
