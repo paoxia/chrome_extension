@@ -1,8 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
-  const checkinBtn = document.getElementById('checkinBtn');
   const addWatchLaterBtn = document.getElementById('addWatchLaterBtn');
-  const checkinStatus = document.getElementById('checkinStatus');
-  const checkinDays = document.getElementById('checkinDays');
+  const watchWatchLaterBtn = document.getElementById('watchWatchLaterBtn');
+  const openWatchLaterBtn = document.getElementById('openWatchLaterBtn');
   const videoCount = document.getElementById('videoCount');
   const logArea = document.getElementById('logArea');
   
@@ -13,40 +12,6 @@ document.addEventListener('DOMContentLoaded', function() {
     logArea.appendChild(logItem);
     logArea.scrollTop = logArea.scrollHeight;
   }
-  
-  function updateCheckinStatus(status, days) {
-    checkinStatus.textContent = status ? '已签到' : '未签到';
-    checkinStatus.className = 'status-value ' + (status ? 'success' : 'pending');
-    checkinDays.textContent = days + ' 天';
-  }
-  
-  function loadCheckinStatus() {
-    chrome.storage.local.get(['checkinStatus', 'checkinDays', 'lastCheckinDate'], function(result) {
-      const today = new Date().toDateString();
-      const isTodayChecked = result.lastCheckinDate === today;
-      updateCheckinStatus(isTodayChecked, result.checkinDays || 0);
-    });
-  }
-  
-  loadCheckinStatus();
-  
-  checkinBtn.addEventListener('click', function() {
-    checkinBtn.disabled = true;
-    checkinBtn.textContent = '签到中...';
-    addLog('开始执行签到...');
-    
-    chrome.runtime.sendMessage({action: 'checkin'}, function(response) {
-      checkinBtn.disabled = false;
-      checkinBtn.textContent = '立即签到';
-      
-      if (response && response.success) {
-        addLog('签到成功！', 'success');
-        updateCheckinStatus(true, response.days || 1);
-      } else {
-        addLog('签到失败: ' + (response?.error || '未知错误'), 'error');
-      }
-    });
-  });
   
   addWatchLaterBtn.addEventListener('click', function() {
     addWatchLaterBtn.disabled = true;
@@ -64,6 +29,14 @@ document.addEventListener('DOMContentLoaded', function() {
         addLog('操作失败: ' + (response?.error || '未知错误'), 'error');
       }
     });
+  });
+  
+  watchWatchLaterBtn.addEventListener('click', function() {
+    chrome.tabs.create({url: 'https://www.bilibili.com/list/watchlater'});
+  });
+  
+  openWatchLaterBtn.addEventListener('click', function() {
+    chrome.tabs.create({url: 'https://www.bilibili.com/watchlater/list'});
   });
   
   chrome.runtime.sendMessage({action: 'getVideoCount'}, function(response) {

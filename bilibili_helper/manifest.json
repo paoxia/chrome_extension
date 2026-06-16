@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Bilibili 助手",
   "version": "1.0.0",
-  "description": "Bilibili 自动签到和稍后观看管理工具",
+  "description": "Bilibili 稍后观看管理工具",
   "icons": {
     "128": "icon.png"
   },
@@ -10,7 +10,6 @@
     "activeTab",
     "storage",
     "cookies",
-    "alarms",
     "scripting"
   ],
   "host_permissions": [
