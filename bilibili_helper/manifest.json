@@ -10,8 +10,18 @@
     "activeTab",
     "storage",
     "cookies",
-    "scripting"
+    "scripting",
+    "declarativeNetRequest"
   ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "bilibili_watch_later_headers",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  },
   "host_permissions": [
     "https://api.bilibili.com/*",
     "https://www.bilibili.com/*",

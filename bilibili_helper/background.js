@@ -2,7 +2,7 @@ const BILIBILI_API = {
   navInfo: 'https://api.bilibili.com/x/web-interface/nav',
   followings: 'https://api.bilibili.com/x/relation/followings',
   feed: 'https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/all',
-  watchLater: 'https://api.bilibili.com/x/v2/history/toview/web/add'
+  watchLater: 'https://api.bilibili.com/x/v2/history/toview/add'
 };
 
 const FEED_PARAMS = 'timezone_offset=-480&type=video&platform=web&features=itemOpusStyle,listOnlyfans,opusBigCover,onlyfansVote,decorationCard,onlyfansAssetsV2,forwardListHidden,ugcDelete,onlyfansQaCard,commentsNewVersion,avatarAutoTheme,sunflowerStyle,cardsEnhance,eva3CardOpus,eva3CardVideo,eva3CardComment,eva3CardVote,eva3CardUser&web_location=333.1365&x-bili-device-req-json=%7B%22platform%22:%22web%22,%22device%22:%22pc%22,%22spmid%22:%22333.1365%22%7D';
