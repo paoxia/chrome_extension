@@ -54,22 +54,23 @@
 
 ### 3. Bilibili 助手 (bilibili_helper)
 
-Bilibili 自动签到和稍后观看管理工具。
+Bilibili 稍后观看批量管理工具：从关注的 UP 主动态中拉取近两天的视频，一键加入稍后观看。
 
 **主要功能：**
-- 📅 每日自动签到
-- 📊 显示签到状态和连续签到天数
-- ⏰ 一键将关注页面两天内未观看视频加入稍后观看
-- 🔔 支持手动触发签到
+- 📊 自动统计关注 UP 主两天内更新的视频数量并显示在弹窗
+- ⏰ 一键将这些视频批量加入稍后观看
+- ▶ 快速跳转到稍后观看播放页 / 列表页
+- 📝 实时显示每一步操作日志（成功 / 失败可视化区分）
 
 **使用场景：**
-- 自动完成每日签到任务
-- 批量管理稍后观看列表
+- 不想错过关注 UP 主的更新，又懒得逐个手动点"稍后再看"
+- 习惯用稍后观看作为统一的播放队列连续观看
 
 **技术特点：**
 - 使用 Manifest V3
-- 基于 Bilibili Web API
-- 使用 `chrome.alarms` 实现定时任务
+- 通过 Bilibili Web 动态 feed API（`/x/polymer/web-dynamic/v1/feed/all`）抓取关注流，并按发布时间过滤
+- 使用 `declarativeNetRequest` 静态规则改写 `toview/add` 请求的 `Origin` / `Referer`，解决 Service Worker 中 fetch 对受限请求头无法直接设置的问题
+- 复用浏览器中已登录的 Bilibili cookie（`SESSDATA` / `bili_jct`），无需额外登录
 
 ---
 
@@ -134,6 +135,7 @@ chrome_extension/
 │   ├── content.js           # Content Script
 │   ├── popup.html           # 弹窗界面
 │   ├── popup.js             # 弹窗逻辑
+│   ├── rules.json           # declarativeNetRequest 请求头改写规则
 │   └── icon.png             # 扩展图标
 │
 ├── video_downloader/        # 视频下载助手
