@@ -4,118 +4,211 @@
   <meta charset="UTF-8">
   <title>Bilibili 助手</title>
   <style>
-    body {
-      width: 350px;
-      padding: 15px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    :root {
+      --bili-pink: #fb7299;
+      --bili-pink-soft: #ff9eb5;
+      --bg: #fafbfc;
+      --card: #ffffff;
+      --border: #ebeef2;
+      --text: #1f2329;
+      --text-soft: #61666d;
+      --text-mute: #9499a0;
+      --success: #52c41a;
+      --error: #ff4d4f;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.04);
     }
-    h1 {
-      font-size: 18px;
-      margin: 0 0 15px 0;
-      color: #fb7299;
+
+    * { box-sizing: border-box; }
+
+    body {
+      width: 340px;
+      margin: 0;
+      padding: 16px;
+      background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+        'PingFang SC', 'Microsoft YaHei', sans-serif;
+      color: var(--text);
+    }
+
+    .app-header {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
+      margin-bottom: 14px;
+      padding: 0 2px;
     }
-    .section {
-      background: #f5f5f5;
-      border-radius: 8px;
-      padding: 12px;
+    .app-header .logo {
+      width: 30px;
+      height: 30px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, var(--bili-pink), var(--bili-pink-soft));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      box-shadow: 0 4px 10px rgba(251, 114, 153, 0.3);
+    }
+    .app-header h1 {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 0;
+      color: var(--text);
+      letter-spacing: 0.2px;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 14px 16px;
       margin-bottom: 12px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
     }
-    .section-title {
-      font-size: 14px;
-      font-weight: bold;
-      color: #333;
+
+    .card-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-soft);
       margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
     }
+
+    .count-display {
+      text-align: center;
+      padding: 4px 0 10px;
+    }
+    .count-number {
+      font-size: 36px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--bili-pink), var(--bili-pink-soft));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+    }
+    .count-label {
+      font-size: 11px;
+      color: var(--text-mute);
+      margin-top: 6px;
+    }
+
     button {
       width: 100%;
-      padding: 10px;
+      padding: 10px 14px;
       border: none;
-      border-radius: 6px;
+      border-radius: 8px;
       cursor: pointer;
-      font-size: 14px;
-      margin-top: 8px;
-      transition: all 0.2s;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: inherit;
+      transition: transform 0.15s ease, box-shadow 0.15s ease,
+        background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     }
-    .btn-secondary {
-      background: #1890ff;
-      color: white;
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--bili-pink) 0%, var(--bili-pink-soft) 100%);
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(251, 114, 153, 0.3);
     }
-    .btn-secondary:hover {
-      background: #40a9ff;
+    .btn-primary:hover:not(:disabled) {
+      box-shadow: 0 4px 14px rgba(251, 114, 153, 0.45);
+      transform: translateY(-1px);
     }
-    .btn-link {
-      background: transparent;
-      color: #1890ff;
-      text-decoration: underline;
-      padding: 6px;
-      font-size: 12px;
-      margin-top: 4px;
+    .btn-primary:active:not(:disabled) {
+      transform: translateY(0);
+      box-shadow: 0 2px 6px rgba(251, 114, 153, 0.3);
     }
-    .btn-link:hover {
-      color: #40a9ff;
-    }
-    .btn:disabled {
-      background: #ccc;
+    .btn-primary:disabled {
+      background: #d9d9d9;
+      color: #fff;
       cursor: not-allowed;
+      box-shadow: none;
     }
-    .log-area {
-      max-height: 150px;
-      overflow-y: auto;
-      font-size: 12px;
-      color: #666;
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .btn-ghost {
       background: #fff;
-      border: 1px solid #e8e8e8;
-      border-radius: 4px;
-      padding: 8px;
-      margin-top: 10px;
+      color: var(--bili-pink);
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      font-size: 12px;
+      flex: 1;
+    }
+    .btn-ghost:hover {
+      background: #fff5f8;
+      border-color: #fbc7d4;
+      color: var(--bili-pink);
+    }
+    .btn-ghost:active {
+      background: #ffe5ed;
+    }
+
+    .log-area {
+      max-height: 140px;
+      overflow-y: auto;
+      font-size: 11.5px;
+      background: #fafbfc;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+    .log-area:empty::before {
+      content: '暂无日志';
+      color: var(--text-mute);
+      font-size: 11px;
+      font-style: italic;
     }
     .log-item {
-      margin-bottom: 4px;
-      padding: 2px 0;
+      padding: 3px 0;
+      color: var(--text-soft);
+      font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+      line-height: 1.5;
+      word-break: break-all;
     }
-    .log-item.success {
-      color: #52c41a;
+    .log-item.success { color: var(--success); }
+    .log-item.error { color: var(--error); }
+
+    .log-area::-webkit-scrollbar { width: 6px; }
+    .log-area::-webkit-scrollbar-thumb {
+      background: #d9d9d9;
+      border-radius: 3px;
     }
-    .log-item.error {
-      color: #ff4d4f;
-    }
-    .video-count {
-      font-size: 24px;
-      font-weight: bold;
-      color: #fb7299;
-      text-align: center;
-      margin: 10px 0;
-    }
-    .hint {
-      font-size: 11px;
-      color: #999;
-      text-align: center;
-      margin-top: 5px;
-    }
+    .log-area::-webkit-scrollbar-thumb:hover { background: #bfbfbf; }
+    .log-area::-webkit-scrollbar-track { background: transparent; }
   </style>
 </head>
 <body>
-  <h1>
-    <span>📺</span>
-    <span>Bilibili 助手</span>
-  </h1>
-  
-  <div class="section">
-    <div class="section-title">⏰ 稍后观看</div>
-    <div class="video-count" id="videoCount">0</div>
-    <div class="hint">两天内未观看的视频数量</div>
-    <button id="addWatchLaterBtn" class="btn-secondary">一键添加到稍后观看</button>
-    <div style="display: flex; gap: 8px; margin-top: 8px;">
-      <button id="watchWatchLaterBtn" class="btn-link" style="flex: 1;">▶ 观看稍后观看</button>
-      <button id="openWatchLaterBtn" class="btn-link" style="flex: 1;">📋 查看列表</button>
+  <div class="app-header">
+    <div class="logo">📺</div>
+    <h1>Bilibili 助手</h1>
+  </div>
+
+  <div class="card">
+    <div class="card-title">⏰ 稍后观看</div>
+    <div class="count-display">
+      <div class="count-number" id="videoCount">0</div>
+      <div class="count-label">两天内未观看的视频</div>
+    </div>
+    <button id="addWatchLaterBtn" class="btn-primary">一键添加到稍后观看</button>
+    <div class="btn-row">
+      <button id="watchWatchLaterBtn" class="btn-ghost">▶ 立即观看</button>
+      <button id="openWatchLaterBtn" class="btn-ghost">📋 查看列表</button>
     </div>
   </div>
-  
-  <div class="log-area" id="logArea"></div>
-  
+
+  <div class="card">
+    <div class="card-title">📝 操作日志</div>
+    <div class="log-area" id="logArea"></div>
+  </div>
+
   <script src="popup.js"></script>
 </body>
 </html>
