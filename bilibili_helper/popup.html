@@ -55,6 +55,27 @@
       color: var(--text);
       letter-spacing: 0.2px;
     }
+    .settings-btn {
+      margin-left: auto;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: var(--text-soft);
+      transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+    }
+    .settings-btn:hover {
+      border-color: #fbc7d4;
+      color: var(--bili-pink);
+      background: #fff5f8;
+    }
 
     .card {
       background: var(--card);
@@ -189,13 +210,14 @@
   <div class="app-header">
     <div class="logo">📺</div>
     <h1>Bilibili 助手</h1>
+    <button class="settings-btn" id="openOptionsBtn" title="设置">⚙</button>
   </div>
 
   <div class="card">
     <div class="card-title">⏰ 稍后观看</div>
     <div class="count-display">
       <div class="count-number" id="videoCount">0</div>
-      <div class="count-label">两天内未观看的视频</div>
+      <div class="count-label" id="countLabel">两天内未观看的视频</div>
     </div>
     <button id="addWatchLaterBtn" class="btn-primary">一键添加到稍后观看</button>
     <div class="btn-row">

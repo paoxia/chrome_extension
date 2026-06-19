@@ -97,19 +97,34 @@ async function getUserId() {
   }
 }
 
-async function getRecentVideosFromFeed() {
+const DEFAULT_RANGE = { value: 2, unit: 'day' };
+const STORAGE_KEY = 'watchLaterRange';
+
+async function getRangeSeconds() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([STORAGE_KEY], (result) => {
+      const range = result[STORAGE_KEY];
+      const valid = range && typeof range.value === 'number' && (range.unit === 'day' || range.unit === 'hour');
+      const { value, unit } = valid ? range : DEFAULT_RANGE;
+      const secondsPerUnit = unit === 'hour' ? 3600 : 86400;
+      resolve(value * secondsPerUnit);
+    });
+  });
+}
+
+async function getRecentVideosFromFeed(rangeSeconds) {
   try {
-    const twoDaysAgo = Math.floor((Date.now() - 2 * 24 * 60 * 60 * 1000) / 1000);
+    const cutoff = Math.floor(Date.now() / 1000) - rangeSeconds;
     const allVideos = [];
     let offset = '';
     let page = 0;
     const maxPages = 5;
-    
+
     while (page < maxPages) {
-      const url = offset 
+      const url = offset
         ? `${BILIBILI_API.feed}?${FEED_PARAMS}&page=${page + 1}&offset=${offset}`
         : `${BILIBILI_API.feed}?${FEED_PARAMS}&page=${page + 1}`;
-      
+
       const response = await fetch(url, {
         headers: {
           'Referer': 'https://www.bilibili.com/',
@@ -118,7 +133,7 @@ async function getRecentVideosFromFeed() {
         },
         credentials: 'include'
       });
-      
+
       const text = await response.text();
       let data;
       try {
@@ -127,36 +142,36 @@ async function getRecentVideosFromFeed() {
         console.error('动态 feed 响应不是 JSON:', text.substring(0, 200));
         break;
       }
-      
+
       if (data.code !== 0) {
         console.error('获取动态 feed 失败:', data.code, data.message);
         break;
       }
-      
+
       if (!data.data || !data.data.items || data.data.items.length === 0) {
         console.log('没有更多动态');
         break;
       }
-      
+
       let hasOldVideo = false;
-      
+
       for (const item of data.data.items) {
         if (item.type !== 'DYNAMIC_TYPE_AV') continue;
-        
+
         const modules = item.modules;
         if (!modules || !modules.module_dynamic) continue;
-        
+
         const major = modules.module_dynamic.major;
         if (!major || !major.archive) continue;
-        
+
         const archive = major.archive;
         const pubDate = archive.pubdate || (modules.module_author && modules.module_author.pub_ts);
-        
-        if (pubDate && pubDate < twoDaysAgo) {
+
+        if (pubDate && pubDate < cutoff) {
           hasOldVideo = true;
           continue;
         }
-        
+
         if (archive.aid && archive.title) {
           allVideos.push({
             aid: archive.aid,
@@ -165,20 +180,20 @@ async function getRecentVideosFromFeed() {
           });
         }
       }
-      
+
       console.log(`第 ${page + 1} 页: 累计 ${allVideos.length} 个视频`);
-      
+
       if (hasOldVideo || !data.data.has_more) {
-        console.log('已获取两天内所有视频');
+        console.log('已获取范围内所有视频');
         break;
       }
-      
+
       offset = data.data.offset;
       page++;
-      
+
       await new Promise(resolve => setTimeout(resolve, 300));
     }
-    
+
     console.log('动态 feed 获取完成，共', allVideos.length, '个视频');
     return allVideos;
   } catch (error) {
@@ -236,12 +251,13 @@ async function processWatchLater() {
     if (!isLoggedIn) {
       return {success: false, error: '请先登录 Bilibili'};
     }
-    
-    console.log('开始从动态 feed 获取视频...');
-    const videos = await getRecentVideosFromFeed();
-    
+
+    const rangeSeconds = await getRangeSeconds();
+    console.log('开始从动态 feed 获取视频，范围（秒）:', rangeSeconds);
+    const videos = await getRecentVideosFromFeed(rangeSeconds);
+
     if (videos.length === 0) {
-      return {success: false, error: '关注的UP主两天内没有新视频'};
+      return {success: false, error: '关注的UP主在所选范围内没有新视频'};
     }
     
     console.log('共找到', videos.length, '个视频，开始添加到稍后观看');
@@ -280,7 +296,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   
   if (message.action === 'getVideoCount') {
     (async () => {
-      const videos = await getRecentVideosFromFeed();
+      const rangeSeconds = await getRangeSeconds();
+      const videos = await getRecentVideosFromFeed(rangeSeconds);
       sendResponse({count: videos.length});
     })();
     return true;

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Bilibili 助手 · 设置</title>
+  <style>
+    :root {
+      --bili-pink: #fb7299;
+      --bili-pink-soft: #ff9eb5;
+      --bg: #fafbfc;
+      --card: #ffffff;
+      --border: #ebeef2;
+      --text: #1f2329;
+      --text-soft: #61666d;
+      --text-mute: #9499a0;
+      --success: #52c41a;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.04);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      width: 360px;
+      margin: 0;
+      padding: 16px;
+      background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+        'PingFang SC', 'Microsoft YaHei', sans-serif;
+      color: var(--text);
+    }
+
+    .app-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      padding: 0 2px;
+    }
+    .app-header .logo {
+      width: 30px;
+      height: 30px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, var(--bili-pink), var(--bili-pink-soft));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      box-shadow: 0 4px 10px rgba(251, 114, 153, 0.3);
+    }
+    .app-header h1 {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 0;
+      color: var(--text);
+      letter-spacing: 0.2px;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+    }
+
+    .card-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-soft);
+      margin-bottom: 12px;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
+
+    .form-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .form-row label {
+      font-size: 13px;
+      color: var(--text);
+      flex-shrink: 0;
+    }
+    .form-row input[type="number"] {
+      width: 64px;
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--text);
+      text-align: center;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+    .form-row input[type="number"]:focus {
+      border-color: var(--bili-pink);
+    }
+    .form-row select {
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--text);
+      background: #fff;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.15s ease;
+    }
+    .form-row select:focus {
+      border-color: var(--bili-pink);
+    }
+
+    .helper-text {
+      font-size: 11px;
+      color: var(--text-mute);
+      margin-top: 4px;
+    }
+
+    .save-status {
+      font-size: 11px;
+      color: var(--success);
+      margin-left: auto;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .save-status.visible {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-header">
+    <div class="logo">⚙️</div>
+    <h1>Bilibili 助手 · 设置</h1>
+  </div>
+
+  <div class="card">
+    <div class="card-title">⏰ 稍后观看</div>
+
+    <div class="form-row">
+      <label>时间范围：</label>
+      <input type="number" id="rangeValue" min="1" max="30" value="2">
+      <select id="rangeUnit">
+        <option value="day">天</option>
+        <option value="hour">小时</option>
+      </select>
+      <span class="save-status" id="saveStatus">已保存</span>
+    </div>
+    <div class="helper-text">动态 feed 中此范围内发布的视频会被识别为"未观看"。</div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
