@@ -54,44 +54,51 @@
 
 ### 3. Bilibili 助手 (bilibili_helper)
 
-Bilibili 稍后观看批量管理工具：从关注的 UP 主动态中拉取近两天的视频，一键加入稍后观看。
+Bilibili 稍后观看批量管理工具：从关注的 UP 主动态中拉取自定义时间范围内的视频，一键加入稍后观看。
 
 **主要功能：**
-- 📊 自动统计关注 UP 主两天内更新的视频数量并显示在弹窗
+- 📊 自动统计关注 UP 主在指定范围内更新的视频数量并显示在弹窗
 - ⏰ 一键将这些视频批量加入稍后观看
+- ⚙️ 独立的嵌入式设置页（齿轮入口），可自定义时间范围（1-30 小时 / 天）
+- 💾 设置持久化保存（chrome.storage.local），跨会话生效
 - ▶ 快速跳转到稍后观看播放页 / 列表页
 - 📝 实时显示每一步操作日志（成功 / 失败可视化区分）
 
 **使用场景：**
 - 不想错过关注 UP 主的更新，又懒得逐个手动点"稍后再看"
 - 习惯用稍后观看作为统一的播放队列连续观看
+- 根据观看节奏自由调整范围（如每天清单 24h / 周末批量补 7 天）
 
 **技术特点：**
 - 使用 Manifest V3
 - 通过 Bilibili Web 动态 feed API（`/x/polymer/web-dynamic/v1/feed/all`）抓取关注流，并按发布时间过滤
 - 使用 `declarativeNetRequest` 静态规则改写 `toview/add` 请求的 `Origin` / `Referer`，解决 Service Worker 中 fetch 对受限请求头无法直接设置的问题
 - 复用浏览器中已登录的 Bilibili cookie（`SESSDATA` / `bili_jct`），无需额外登录
+- 通过 `options_ui`（嵌入式弹层）独立呈现设置，弹窗界面保持简洁
+- 设置变更后通过 `chrome.storage.onChanged` 实时同步弹窗的计数和文案
 
 ---
 
-### 4. 视频下载助手 (video_downloader)
+### 4. 工作流倒计时 (workflow_timer)
 
-提取页面视频链接，支持迅雷下载。
+支持多步骤工作流的倒计时工具，按顺序执行一组定时任务，配合系统通知提醒切换步骤。
 
 **主要功能：**
-- 🔍 自动扫描页面中的视频资源
-- 📋 显示检测到的视频列表（格式、大小）
-- ⚡ 支持迅雷下载协议
-- 📦 支持批量下载
+- ⏱ 自定义多步骤工作流（每步可设独立时长）
+- 🔔 步骤切换时系统通知提醒
+- 🔁 通过 `chrome.alarms` 在后台精确驱动倒计时，关闭弹窗仍正常运行
+- 🔊 借助 offscreen 文档播放提示音（突破 Service Worker 不能直接播放音频的限制）
 
 **使用场景：**
-- 下载网页中的视频资源
-- 批量获取视频链接
+- 番茄钟与变种节奏（专注 + 休息 + 长休息）
+- 健身组间训练计时
+- 学习/写作分段计时
 
 **技术特点：**
 - 使用 Manifest V3
-- 支持多种视频格式检测（mp4、m3u8、webm 等）
-- 迅雷协议调用
+- `chrome.alarms` + `chrome.notifications` 实现可靠的后台调度与提醒
+- 使用 Offscreen API 处理音频播放
+- 状态保存在 `chrome.storage`，浏览器重启后可恢复
 
 ---
 
@@ -127,6 +134,8 @@ chrome_extension/
 │   ├── content.js           # Content Script
 │   ├── popup.html           # 弹窗界面
 │   ├── popup.js             # 弹窗逻辑
+│   ├── images/              # 图片资源
+│   ├── README.md            # 子模块说明
 │   └── icon.png             # 扩展图标
 │
 ├── bilibili_helper/         # Bilibili 助手
@@ -135,24 +144,22 @@ chrome_extension/
 │   ├── content.js           # Content Script
 │   ├── popup.html           # 弹窗界面
 │   ├── popup.js             # 弹窗逻辑
+│   ├── options.html         # 嵌入式设置页
+│   ├── options.js           # 设置页逻辑
 │   ├── rules.json           # declarativeNetRequest 请求头改写规则
 │   └── icon.png             # 扩展图标
 │
-├── video_downloader/        # 视频下载助手
+├── workflow_timer/          # 工作流倒计时
 │   ├── manifest.json        # 扩展配置文件
-│   ├── background.js        # Service Worker
-│   ├── content.js           # Content Script
+│   ├── background.js        # Service Worker（alarms 调度）
 │   ├── popup.html           # 弹窗界面
 │   ├── popup.js             # 弹窗逻辑
+│   ├── offscreen.html       # Offscreen 文档（音频播放载体）
+│   ├── offscreen.js         # Offscreen 文档逻辑
 │   ├── style.css            # 样式文件
 │   └── icon.png             # 扩展图标
 │
-├── .harness/                # 任务管理
-│   ├── Agent.md             # Agent 工作流程
-│   ├── todo/                # 待办任务
-│   └── executed/            # 已完成任务
-│
-├── .gitignore               # Git 忽略配置
+├── .gitignore               # Git 忽略配置（含 _metadata/）
 ├── LICENSE                  # 许可证文件
 └── README.md                # 本文件
 ```
@@ -163,7 +170,7 @@ chrome_extension/
 
 - **Chrome Extension Manifest V3**
 - **JavaScript (ES6+)**
-- **Chrome APIs**: `declarativeNetRequest`, `storage`, `tabs`, `activeTab`, `alarms`, `notifications`, `scripting`
+- **Chrome APIs**: `declarativeNetRequest`, `storage`, `cookies`, `tabs`, `activeTab`, `alarms`, `notifications`, `scripting`, `offscreen`
 
 ---
 
