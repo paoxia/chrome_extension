@@ -1,5 +1,8 @@
 // commands/session_cmds.js
-export const sessionCommands = {
-  ping: async () => ({ pong: true }),
-  // open_session / close_session added in Task 5
-};
+export function makeSessionCommands(session) {
+  return {
+    ping: async () => ({ pong: true }),
+    open_session: async ({ url } = {}) => session.openSession({ url }),
+    close_session: async () => session.closeSession('agent_request'),
+  };
+}

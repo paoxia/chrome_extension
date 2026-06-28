@@ -1,11 +1,9 @@
 import { createWsClient } from './ws_client.js';
 import { createRouter } from './router.js';
-import { sessionCommands } from './commands/session_cmds.js';
+import { makeSessionCommands } from './commands/session_cmds.js';
+import { createSession } from './session.js';
 
 const log = (...a) => console.log('[bg]', ...a);
-
-const router = createRouter();
-Object.entries(sessionCommands).forEach(([t, fn]) => router.register(t, fn));
 
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 8765;
@@ -16,7 +14,14 @@ async function refreshUrl() {
   cachedUrl = `ws://${wsHost || DEFAULT_HOST}:${wsPort || DEFAULT_PORT}`;
 }
 
-const ctx = {}; // commands will read fields from this
+const session = createSession({
+  onEvent: (ev) => client.send(ev),
+});
+
+const router = createRouter();
+Object.entries(makeSessionCommands(session)).forEach(([t, fn]) => router.register(t, fn));
+
+const ctx = { session };
 
 const client = createWsClient({
   getUrl: () => cachedUrl,
