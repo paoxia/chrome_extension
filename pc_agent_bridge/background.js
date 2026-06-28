@@ -1,6 +1,7 @@
 import { createWsClient } from './ws_client.js';
 import { createRouter } from './router.js';
 import { makeSessionCommands } from './commands/session_cmds.js';
+import { makeNavigationCommands } from './commands/navigation.js';
 import { createSession } from './session.js';
 
 const log = (...a) => console.log('[bg]', ...a);
@@ -20,6 +21,7 @@ const session = createSession({
 
 const router = createRouter();
 Object.entries(makeSessionCommands(session)).forEach(([t, fn]) => router.register(t, fn));
+Object.entries(makeNavigationCommands(session)).forEach(([t, fn]) => router.register(t, fn));
 
 const ctx = { session };
 
