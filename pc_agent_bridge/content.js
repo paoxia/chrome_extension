@@ -74,6 +74,18 @@ const handlers = {
     el.scrollIntoView({ block: 'center', inline: 'center' });
     return {};
   },
+
+  read_page: async ({ mode = 'text', maxLen = 20000 } = {}) => {
+    if (mode === 'text') {
+      const clone = document.body.cloneNode(true);
+      clone.querySelectorAll('script, style, noscript').forEach(n => n.remove());
+      let text = clone.innerText || clone.textContent || '';
+      text = text.replace(/\s+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+      if (text.length > maxLen) text = text.slice(0, maxLen);
+      return { url: location.href, title: document.title, text };
+    }
+    throw { code: 'bad_params', message: `unsupported mode: ${mode}` };
+  },
 };
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
