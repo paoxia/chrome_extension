@@ -1,50 +1,41 @@
-// background.js — entry point
 import { createWsClient } from './ws_client.js';
+import { createRouter } from './router.js';
+import { sessionCommands } from './commands/session_cmds.js';
 
 const log = (...a) => console.log('[bg]', ...a);
 
+const router = createRouter();
+Object.entries(sessionCommands).forEach(([t, fn]) => router.register(t, fn));
+
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 8765;
+let cachedUrl = `ws://${DEFAULT_HOST}:${DEFAULT_PORT}`;
 
-async function getUrl() {
+async function refreshUrl() {
   const { wsHost, wsPort } = await chrome.storage.local.get(['wsHost', 'wsPort']);
-  return `ws://${wsHost || DEFAULT_HOST}:${wsPort || DEFAULT_PORT}`;
+  cachedUrl = `ws://${wsHost || DEFAULT_HOST}:${wsPort || DEFAULT_PORT}`;
 }
 
+const ctx = {}; // commands will read fields from this
+
 const client = createWsClient({
-  getUrl: () => {
-    // sync wrapper — read cached value
-    return cachedUrl;
+  getUrl: () => cachedUrl,
+  onMessage: async (msg) => {
+    const response = await router.handle(msg, ctx);
+    if (response) client.send(response);
   },
-  onMessage: (msg) => log('msg', msg),
   onStatusChange: (s) => {
     log('status', s);
     chrome.storage.local.set({ wsStatus: s });
   },
 });
 
-let cachedUrl = `ws://${DEFAULT_HOST}:${DEFAULT_PORT}`;
-async function refreshUrl() {
-  cachedUrl = await getUrl();
-}
-
 chrome.storage.onChanged.addListener((changes) => {
-  if (changes.wsHost || changes.wsPort) {
-    refreshUrl().then(() => {
-      client.stop();
-      // recreate is overkill for MVP — just rely on reconnect chain.
-      // Simpler: full reload of extension when user changes host/port.
-    });
-  }
+  if (changes.wsHost || changes.wsPort) refreshUrl();
 });
 
-// MV3 SW keep-alive
 chrome.alarms.create('keepalive', { periodInMinutes: 0.5 });
-chrome.alarms.onAlarm.addListener(() => { /* noop — wakeup */ });
+chrome.alarms.onAlarm.addListener(() => {});
 
-(async () => {
-  await refreshUrl();
-  client.connect();
-})();
-
+(async () => { await refreshUrl(); client.connect(); })();
 log('loaded');
