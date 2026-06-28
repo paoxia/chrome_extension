@@ -84,6 +84,14 @@ const handlers = {
       if (text.length > maxLen) text = text.slice(0, maxLen);
       return { url: location.href, title: document.title, text };
     }
+    if (mode === 'labeled') {
+      if (!window.__pcAgent || typeof window.__pcAgent.scanAndLabel !== 'function') {
+        throw { code: 'script_error', message: 'labeler not available' };
+      }
+      const { elements, map } = window.__pcAgent.scanAndLabel();
+      labeledMap = map;
+      return { url: location.href, title: document.title, elements };
+    }
     throw { code: 'bad_params', message: `unsupported mode: ${mode}` };
   },
 };

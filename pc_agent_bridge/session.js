@@ -37,7 +37,7 @@ export function createSession({ onEvent }) {
     try {
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        files: ['content.js'],
+        files: ['labeler.js', 'content.js'],
       });
     } catch (err) {
       log('inject failed, rolling back to IDLE', err);
