@@ -193,7 +193,9 @@ chrome_extension/
 │   ├── background.js        # Service Worker（WS + 会话编排）
 │   ├── ws_client.js         # WebSocket 客户端与重连/心跳
 │   ├── session.js           # 会话状态机
+│   ├── router.js            # 指令路由与异常包装
 │   ├── commands/
+│   │   ├── session_cmds.js  # ping / open_session / close_session
 │   │   ├── navigation.js    # 导航类指令
 │   │   ├── dom.js           # DOM 操作指令转发
 │   │   └── capture.js       # 截屏指令
