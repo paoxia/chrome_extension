@@ -11,27 +11,38 @@ const log = (...a) => console.log('[bg]', ...a);
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 8765;
 let cachedUrl = `ws://${DEFAULT_HOST}:${DEFAULT_PORT}`;
+let client = null;
 
 async function refreshUrl() {
   const { wsHost, wsPort } = await chrome.storage.local.get(['wsHost', 'wsPort']);
   cachedUrl = `ws://${wsHost || DEFAULT_HOST}:${wsPort || DEFAULT_PORT}`;
 }
 
+const RECENT_LOG_MAX = 30;
+async function pushLog(line) {
+  const { recentLog = [] } = await chrome.storage.local.get('recentLog');
+  recentLog.push(`${new Date().toLocaleTimeString()} ${line}`);
+  while (recentLog.length > RECENT_LOG_MAX) recentLog.shift();
+  await chrome.storage.local.set({ recentLog });
+}
+
+async function syncSessionStorage(session) {
+  const s = session.snapshot();
+  await chrome.storage.local.set({ sessionId: s.sessionId, agentTabId: s.agentTabId });
+}
+
 const session = createSession({
-  onEvent: (ev) => client.send(ev),
+  onEvent: (ev) => {
+    if (client) client.send(ev);
+    pushLog(`event ${ev.name}`);
+    syncSessionStorage(session);
+  },
 });
 
-const router = createRouter();
-Object.entries(makeSessionCommands(session)).forEach(([t, fn]) => router.register(t, fn));
-Object.entries(makeNavigationCommands(session)).forEach(([t, fn]) => router.register(t, fn));
-
 const ctx = { session };
-
 ctx.sendToContent = async (type, params) => {
   const tabId = session.requireRunning();
-  async function attempt() {
-    return chrome.tabs.sendMessage(tabId, { type, params });
-  }
+  async function attempt() { return chrome.tabs.sendMessage(tabId, { type, params }); }
   let reply;
   try {
     reply = await attempt();
@@ -56,23 +67,46 @@ ctx.sendToContent = async (type, params) => {
   return reply.data;
 };
 
+const router = createRouter();
+Object.entries(makeSessionCommands(session)).forEach(([t, fn]) => router.register(t, fn));
+Object.entries(makeNavigationCommands(session)).forEach(([t, fn]) => router.register(t, fn));
 Object.entries(makeDomCommands(ctx)).forEach(([t, fn]) => router.register(t, fn));
 Object.entries(makeCaptureCommands(session)).forEach(([t, fn]) => router.register(t, fn));
 
-const client = createWsClient({
-  getUrl: () => cachedUrl,
-  onMessage: async (msg) => {
-    const response = await router.handle(msg, ctx);
-    if (response) client.send(response);
-  },
-  onStatusChange: (s) => {
-    log('status', s);
-    chrome.storage.local.set({ wsStatus: s });
-  },
-});
+function createClient() {
+  return createWsClient({
+    getUrl: () => cachedUrl,
+    onMessage: async (msg) => {
+      const response = await router.handle(msg, ctx);
+      if (response) {
+        client.send(response);
+        pushLog(`<- ${msg.type} \u2192 ${response.ok ? 'ok' : 'err'}`);
+      }
+    },
+    onStatusChange: (s) => {
+      log('status', s);
+      chrome.storage.local.set({ wsStatus: s });
+      pushLog(`ws ${s}`);
+    },
+  });
+}
+
+client = createClient();
 
 chrome.storage.onChanged.addListener((changes) => {
   if (changes.wsHost || changes.wsPort) refreshUrl();
+});
+
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg?.type === '__reconnect__') {
+    refreshUrl().then(() => {
+      if (client) client.stop();
+      client = createClient();
+      client.connect();
+    });
+  } else if (msg?.type === '__disconnect_session__') {
+    session.closeSession('user_disconnect');
+  }
 });
 
 chrome.alarms.create('keepalive', { periodInMinutes: 0.5 });

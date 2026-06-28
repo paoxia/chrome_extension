@@ -1,3 +1,28 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><title>PC Agent Bridge</title></head>
-<body><p>Loading…</p></body></html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>PC Agent Bridge</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>PC Agent Bridge</h1>
+  <div class="row"><span class="label">Status</span>
+    <span class="dot" id="dot"></span>
+    <span class="value" id="status">—</span>
+  </div>
+  <div class="row"><span class="label">Host</span>
+    <input type="text" id="host" value="127.0.0.1">
+  </div>
+  <div class="row"><span class="label">Port</span>
+    <input type="number" id="port" value="8765" min="1" max="65535">
+  </div>
+  <div class="row"><span class="label">Session</span>
+    <span class="value" id="session">idle</span>
+  </div>
+  <button id="save">Save & Reconnect</button>
+  <button id="disconnect" class="secondary">Disconnect Session</button>
+  <div class="log" id="log"></div>
+  <script src="popup.js"></script>
+</body>
+</html>
