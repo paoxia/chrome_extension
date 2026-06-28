@@ -12,6 +12,9 @@ const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 8765;
 let cachedUrl = `ws://${DEFAULT_HOST}:${DEFAULT_PORT}`;
 let client = null;
+let clientGen = 0;
+
+const storageArea = chrome.storage.session ?? chrome.storage.local;
 
 async function refreshUrl() {
   const { wsHost, wsPort } = await chrome.storage.local.get(['wsHost', 'wsPort']);
@@ -19,23 +22,25 @@ async function refreshUrl() {
 }
 
 const RECENT_LOG_MAX = 30;
-async function pushLog(line) {
-  const { recentLog = [] } = await chrome.storage.local.get('recentLog');
+let recentLog = [];
+function pushLog(line) {
   recentLog.push(`${new Date().toLocaleTimeString()} ${line}`);
-  while (recentLog.length > RECENT_LOG_MAX) recentLog.shift();
-  await chrome.storage.local.set({ recentLog });
+  if (recentLog.length > RECENT_LOG_MAX) {
+    recentLog = recentLog.slice(-RECENT_LOG_MAX);
+  }
+  storageArea.set({ recentLog }).catch((e) => console.warn('[bg] log persist', e));
 }
 
-async function syncSessionStorage(session) {
-  const s = session.snapshot();
-  await chrome.storage.local.set({ sessionId: s.sessionId, agentTabId: s.agentTabId });
+function syncSessionStorage() {
+  storageArea.set({ sessionSnapshot: session.snapshot() })
+    .catch((e) => console.warn('[bg] session persist', e));
 }
 
 const session = createSession({
   onEvent: (ev) => {
     if (client) client.send(ev);
     pushLog(`event ${ev.name}`);
-    syncSessionStorage(session);
+    syncSessionStorage();
   },
 });
 
@@ -74,21 +79,26 @@ Object.entries(makeDomCommands(ctx)).forEach(([t, fn]) => router.register(t, fn)
 Object.entries(makeCaptureCommands(session)).forEach(([t, fn]) => router.register(t, fn));
 
 function createClient() {
-  return createWsClient({
+  const myGen = ++clientGen;
+  const self = createWsClient({
     getUrl: () => cachedUrl,
     onMessage: async (msg) => {
+      if (myGen !== clientGen) return;
       const response = await router.handle(msg, ctx);
+      if (myGen !== clientGen) return;
       if (response) {
-        client.send(response);
+        self.send(response);
         pushLog(`<- ${msg.type} \u2192 ${response.ok ? 'ok' : 'err'}`);
       }
     },
     onStatusChange: (s) => {
+      if (myGen !== clientGen) return;
       log('status', s);
-      chrome.storage.local.set({ wsStatus: s });
+      storageArea.set({ wsState: s }).catch((e) => console.warn('[bg] wsState persist', e));
       pushLog(`ws ${s}`);
     },
   });
+  return self;
 }
 
 client = createClient();
@@ -97,20 +107,42 @@ chrome.storage.onChanged.addListener((changes) => {
   if (changes.wsHost || changes.wsPort) refreshUrl();
 });
 
-chrome.runtime.onMessage.addListener((msg) => {
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === '__reconnect__') {
-    refreshUrl().then(() => {
-      if (client) client.stop();
-      client = createClient();
-      client.connect();
-    });
+    (async () => {
+      try {
+        await refreshUrl();
+        if (client) client.stop();
+        client = createClient();
+        client.connect();
+        sendResponse({ ok: true });
+      } catch (e) {
+        sendResponse({ ok: false, error: String(e?.message ?? e) });
+      }
+    })();
+    return true;
   } else if (msg?.type === '__disconnect_session__') {
-    session.closeSession('user_disconnect');
+    (async () => {
+      try {
+        await session.closeSession('user_disconnect');
+        sendResponse({ ok: true });
+      } catch (e) {
+        sendResponse({ ok: false, error: String(e?.message ?? e) });
+      }
+    })();
+    return true;
   }
 });
 
 chrome.alarms.create('keepalive', { periodInMinutes: 0.5 });
 chrome.alarms.onAlarm.addListener(() => {});
 
-(async () => { await refreshUrl(); client.connect(); })();
+(async () => {
+  try {
+    await refreshUrl();
+  } catch (e) {
+    console.warn('[bg] refreshUrl initial', e);
+  }
+  client.connect();
+})();
 log('loaded');
