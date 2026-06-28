@@ -3,6 +3,7 @@ import { createRouter } from './router.js';
 import { makeSessionCommands } from './commands/session_cmds.js';
 import { makeNavigationCommands } from './commands/navigation.js';
 import { makeDomCommands } from './commands/dom.js';
+import { makeCaptureCommands } from './commands/capture.js';
 import { createSession } from './session.js';
 
 const log = (...a) => console.log('[bg]', ...a);
@@ -43,6 +44,7 @@ ctx.sendToContent = async (type, params) => {
 };
 
 Object.entries(makeDomCommands(ctx)).forEach(([t, fn]) => router.register(t, fn));
+Object.entries(makeCaptureCommands(session)).forEach(([t, fn]) => router.register(t, fn));
 
 const client = createWsClient({
   getUrl: () => cachedUrl,
