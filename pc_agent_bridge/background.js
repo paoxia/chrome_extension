@@ -23,6 +23,14 @@ Object.entries(makeSessionCommands(session)).forEach(([t, fn]) => router.registe
 
 const ctx = { session };
 
+ctx.sendToContent = async (type, params) => {
+  const tabId = session.requireRunning();
+  const reply = await chrome.tabs.sendMessage(tabId, { type, params });
+  if (!reply) throw { code: 'script_error', message: 'no reply from content' };
+  if (!reply.ok) throw reply.error || { code: 'script_error', message: 'unknown error' };
+  return reply.data;
+};
+
 const client = createWsClient({
   getUrl: () => cachedUrl,
   onMessage: async (msg) => {

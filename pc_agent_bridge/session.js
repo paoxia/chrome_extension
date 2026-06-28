@@ -34,6 +34,17 @@ export function createSession({ onEvent }) {
       state = 'IDLE'; agentTabId = null; sessionId = null;
       throw err;
     }
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['content.js'],
+      });
+    } catch (err) {
+      log('inject failed, rolling back to IDLE', err);
+      try { await chrome.tabs.remove(tab.id); } catch {}
+      state = 'IDLE'; agentTabId = null; sessionId = null;
+      throw { code: 'unsupported_url', message: String(err?.message || err) };
+    }
     sessionId = `sess-${Date.now()}`;
     state = 'RUNNING';
     log('opened', { agentTabId, sessionId });
