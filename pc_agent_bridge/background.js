@@ -29,14 +29,27 @@ const ctx = { session };
 
 ctx.sendToContent = async (type, params) => {
   const tabId = session.requireRunning();
+  async function attempt() {
+    return chrome.tabs.sendMessage(tabId, { type, params });
+  }
   let reply;
   try {
-    reply = await chrome.tabs.sendMessage(tabId, { type, params });
+    reply = await attempt();
   } catch (e) {
-    if (/tab was closed|No tab with id/i.test(e?.message ?? '')) {
-      throw { code: 'tab_lost', message: e.message };
+    const msg = String(e?.message ?? e);
+    if (/tab was closed|No tab with id/i.test(msg)) {
+      throw { code: 'tab_lost', message: msg };
     }
-    throw { code: 'script_error', message: 'content script unreachable: ' + (e?.message ?? e) };
+    await new Promise((r) => setTimeout(r, 1000));
+    try {
+      reply = await attempt();
+    } catch (e2) {
+      const msg2 = String(e2?.message ?? e2);
+      if (/tab was closed|No tab with id/i.test(msg2)) {
+        throw { code: 'tab_lost', message: msg2 };
+      }
+      throw { code: 'script_error', message: 'content script unreachable: ' + msg2 };
+    }
   }
   if (!reply) throw { code: 'script_error', message: 'no reply from content' };
   if (!reply.ok) throw reply.error || { code: 'script_error', message: 'unknown error' };

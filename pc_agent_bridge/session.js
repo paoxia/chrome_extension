@@ -99,6 +99,23 @@ export function createSession({ onEvent }) {
     }
   });
 
+  chrome.webNavigation.onCommitted.addListener(async (details) => {
+    if (details.frameId !== 0) return;
+    if (state !== 'RUNNING' || details.tabId !== agentTabId) return;
+    try {
+      await waitForComplete(agentTabId);
+      await chrome.scripting.executeScript({
+        target: { tabId: agentTabId },
+        files: ['labeler.js', 'content.js'],
+      });
+      const tab = await chrome.tabs.get(agentTabId);
+      onEvent?.({ type: 'event', name: 'tab_navigated',
+                  data: { url: tab.url, title: tab.title } });
+    } catch (e) {
+      log('re-inject failed', e);
+    }
+  });
+
   function requireRunning() {
     if (state !== 'RUNNING') {
       throw { code: 'no_session', message: 'no active session' };
