@@ -41,9 +41,14 @@ export function createSession({ onEvent }) {
       });
     } catch (err) {
       log('inject failed, rolling back to IDLE', err);
+      let tabGone = false;
+      try { await chrome.tabs.get(tab.id); } catch { tabGone = true; }
       try { await chrome.tabs.remove(tab.id); } catch {}
       state = 'IDLE'; agentTabId = null; sessionId = null;
-      throw { code: 'unsupported_url', message: String(err?.message || err) };
+      if (tabGone) {
+        throw { code: 'tab_closed_during_load', message: 'tab closed before content script injection completed' };
+      }
+      throw { code: 'unsupported_url', message: err?.message ?? 'inject failed' };
     }
     sessionId = `sess-${Date.now()}`;
     state = 'RUNNING';
