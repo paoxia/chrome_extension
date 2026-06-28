@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "PC Agent Bridge",
+  "version": "0.1.0",
+  "description": "Bridge between a local PC agent and Chrome via WebSocket",
+  "icons": { "128": "icon.png" },
+  "permissions": ["tabs", "scripting", "storage", "alarms", "webNavigation"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  }
+}
