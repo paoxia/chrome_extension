@@ -2,7 +2,7 @@
 const log = (...a) => console.log('[session]', ...a);
 
 export function createSession({ onEvent }) {
-  let state = 'IDLE';     // IDLE | RUNNING
+  let state = 'IDLE';     // IDLE | OPENING | RUNNING
   let agentTabId = null;
   let sessionId = null;
 
@@ -11,12 +11,29 @@ export function createSession({ onEvent }) {
   }
 
   async function openSession({ url } = {}) {
-    if (state === 'RUNNING') {
+    if (state !== 'IDLE') {
       throw { code: 'session_busy', message: 'a session is already active' };
     }
-    const tab = await chrome.tabs.create({ url: url || 'about:blank', active: true });
-    await waitForComplete(tab.id);
+    state = 'OPENING';
+    let tab;
+    try {
+      tab = await chrome.tabs.create({ url: url || 'about:blank', active: true });
+    } catch (err) {
+      log('open failed, rolling back to IDLE', err);
+      state = 'IDLE'; agentTabId = null; sessionId = null;
+      throw err;
+    }
     agentTabId = tab.id;
+    try {
+      await waitForComplete(tab.id);
+    } catch (err) {
+      log('open failed, rolling back to IDLE', err);
+      if (err && err.code === 'tab_closed_during_load') {
+        try { await chrome.tabs.remove(tab.id); } catch {}
+      }
+      state = 'IDLE'; agentTabId = null; sessionId = null;
+      throw err;
+    }
     sessionId = `sess-${Date.now()}`;
     state = 'RUNNING';
     log('opened', { agentTabId, sessionId });
@@ -26,7 +43,7 @@ export function createSession({ onEvent }) {
   }
 
   async function closeSession(reason = 'agent_request') {
-    if (state !== 'RUNNING') return {};
+    if (state !== 'RUNNING' && state !== 'OPENING') return {};
     const tabId = agentTabId;
     state = 'IDLE'; agentTabId = null; sessionId = null;
     try { if (tabId) await chrome.tabs.remove(tabId); } catch {}
@@ -36,14 +53,25 @@ export function createSession({ onEvent }) {
   }
 
   function waitForComplete(tabId) {
-    return new Promise((resolve) => {
-      function check(id, info) {
+    return new Promise((resolve, reject) => {
+      function cleanup() {
+        chrome.tabs.onUpdated.removeListener(onUpdated);
+        chrome.tabs.onRemoved.removeListener(onRemoved);
+      }
+      function onUpdated(id, info) {
         if (id === tabId && info.status === 'complete') {
-          chrome.tabs.onUpdated.removeListener(check);
+          cleanup();
           resolve();
         }
       }
-      chrome.tabs.onUpdated.addListener(check);
+      function onRemoved(id) {
+        if (id === tabId) {
+          cleanup();
+          reject({ code: 'tab_closed_during_load', message: 'tab closed before navigation completed' });
+        }
+      }
+      chrome.tabs.onUpdated.addListener(onUpdated);
+      chrome.tabs.onRemoved.addListener(onRemoved);
     });
   }
 
