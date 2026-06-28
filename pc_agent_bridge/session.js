@@ -5,6 +5,7 @@ export function createSession({ onEvent }) {
   let state = 'IDLE';     // IDLE | OPENING | RUNNING
   let agentTabId = null;
   let sessionId = null;
+  let pendingReinject = null;
 
   function snapshot() {
     return { state, agentTabId, sessionId };
@@ -99,21 +100,27 @@ export function createSession({ onEvent }) {
     }
   });
 
-  chrome.webNavigation.onCommitted.addListener(async (details) => {
+  chrome.webNavigation.onCommitted.addListener((details) => {
     if (details.frameId !== 0) return;
     if (state !== 'RUNNING' || details.tabId !== agentTabId) return;
-    try {
-      await waitForComplete(agentTabId);
-      await chrome.scripting.executeScript({
-        target: { tabId: agentTabId },
-        files: ['labeler.js', 'content.js'],
-      });
-      const tab = await chrome.tabs.get(agentTabId);
-      onEvent?.({ type: 'event', name: 'tab_navigated',
-                  data: { url: tab.url, title: tab.title } });
-    } catch (e) {
-      log('re-inject failed', e);
-    }
+    if (pendingReinject) return;
+    const id = agentTabId;
+    pendingReinject = (async () => {
+      try {
+        await waitForComplete(id);
+        await chrome.scripting.executeScript({
+          target: { tabId: id },
+          files: ['labeler.js', 'content.js'],
+        });
+        const tab = await chrome.tabs.get(id);
+        onEvent?.({ type: 'event', name: 'tab_navigated',
+                    data: { url: tab.url, title: tab.title } });
+      } catch (e) {
+        log('re-inject failed', e);
+      } finally {
+        pendingReinject = null;
+      }
+    })();
   });
 
   function requireRunning() {
