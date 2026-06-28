@@ -1,2 +1,4 @@
 .harness/
 _metadata/
+__pycache__/
+*.pyc
