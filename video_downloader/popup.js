@@ -19,57 +19,60 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function copyToClipboard(text) {
     return new Promise((resolve) => {
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      textarea.style.position = 'fixed';
-      textarea.style.left = '-9999px';
-      document.body.appendChild(textarea);
-      textarea.select();
-      
-      try {
-        const successful = document.execCommand('copy');
-        resolve(successful);
-      } catch (err) {
-        resolve(false);
-      } finally {
-        document.body.removeChild(textarea);
-      }
+      setTimeout(() => {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        
+        try {
+          const successful = document.execCommand('copy');
+          document.body.removeChild(textarea);
+          resolve(successful);
+        } catch (err) {
+          document.body.removeChild(textarea);
+          resolve(false);
+        }
+      }, 0);
     });
   }
 
-  function copyVideoUrl(url) {
+  function copyVideoUrl(url, filename) {
     return new Promise((resolve) => {
-      const thunderUrl = convertToThunder(url);
+      const thunderUrl = convertToThunder(url, filename);
+      const clipboardText = filename ? `${url}|${filename}` : url;
       
-      copyToClipboard(url).then((success) => {
+      copyToClipboard(clipboardText).then((success) => {
         if (success) {
           showToast('已复制到剪贴板，迅雷将自动检测');
           resolve(true);
         } else {
-          try {
-            navigator.clipboard.writeText(url).then(() => {
-              showToast('已复制到剪贴板，迅雷将自动检测');
-              resolve(true);
-            }).catch(() => {
-              window.location.href = thunderUrl;
-              showToast('尝试通过协议唤起迅雷');
-              resolve(true);
-            });
-          } catch (err) {
+          navigator.clipboard.writeText(clipboardText).then(() => {
+            showToast('已复制到剪贴板，迅雷将自动检测');
+            resolve(true);
+          }).catch(() => {
             window.location.href = thunderUrl;
             showToast('尝试通过协议唤起迅雷');
             resolve(true);
-          }
+          });
         }
+      }).catch(() => {
+        window.location.href = thunderUrl;
+        showToast('尝试通过协议唤起迅雷');
+        resolve(true);
       });
     });
   }
 
-  function convertToThunder(url) {
+  function convertToThunder(url, filename) {
     const prefix = 'AA';
     const suffix = 'ZZ';
-    const encoded = prefix + url + suffix;
-    const base64 = btoa(encoded);
+    const content = filename ? `${url}|${filename}` : url;
+    const encoded = prefix + content + suffix;
+    const utf8Bytes = new TextEncoder().encode(encoded);
+    const base64 = btoa(String.fromCharCode(...utf8Bytes));
     return 'thunder://' + base64;
   }
 
@@ -110,13 +113,14 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
 
-    videoList.innerHTML = sortedVideos.map(video => {
-      const escapedUrl = escapeHtml(video.url);
+    videoList.innerHTML = '';
+    sortedVideos.forEach(video => {
       const escapedFilename = escapeHtml(video.filename || video.title);
       const escapedType = video.mimeType ? escapeHtml(video.mimeType.split('/')[1].toUpperCase()) : 'Video';
       
-      return `
-      <div class="video-item">
+      const item = document.createElement('div');
+      item.className = 'video-item';
+      item.innerHTML = `
         <div class="video-icon">▶</div>
         <div class="video-info">
           <div class="video-name" title="${escapedFilename}">${escapedFilename}</div>
@@ -124,35 +128,28 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="video-type">${escapedType}</div>
         </div>
         <div class="btn-group">
-          <button class="action-btn copy-btn" data-url="${escapedUrl}" title="复制链接（唤起迅雷）">
-            📋
-          </button>
-          <button class="action-btn download-btn" data-url="${escapedUrl}" data-filename="${escapedFilename}" title="下载">
-            ⬇️
-          </button>
+          <button class="action-btn copy-btn" title="复制链接（唤起迅雷）">📋</button>
+          <button class="action-btn download-btn" title="下载">⬇️</button>
         </div>
-      </div>
       `;
-    }).join('');
-
-    document.querySelectorAll('.copy-btn').forEach(btn => {
-      btn.addEventListener('click', function() {
-        const url = this.getAttribute('data-url');
+      
+      const copyBtn = item.querySelector('.copy-btn');
+      copyBtn.videoData = { url: video.url, filename: video.filename || video.title };
+      copyBtn.addEventListener('click', function() {
+        const { url, filename } = this.videoData;
         this.innerHTML = '⏳';
-        copyVideoUrl(url).then(() => {
+        copyVideoUrl(url, filename).then(() => {
           this.innerHTML = '✓';
           setTimeout(() => {
             this.innerHTML = '📋';
           }, 2000);
         });
       });
-    });
-
-    document.querySelectorAll('.download-btn').forEach(btn => {
-      btn.addEventListener('click', function() {
-        const url = this.getAttribute('data-url');
-        const filename = this.getAttribute('data-filename');
-        
+      
+      const downloadBtn = item.querySelector('.download-btn');
+      downloadBtn.videoData = { url: video.url, filename: video.filename || video.title };
+      downloadBtn.addEventListener('click', function() {
+        const { url, filename } = this.videoData;
         this.innerHTML = '⏳';
         
         chrome.runtime.sendMessage({
@@ -173,6 +170,8 @@ document.addEventListener('DOMContentLoaded', function() {
           }
         });
       });
+      
+      videoList.appendChild(item);
     });
   }
 
