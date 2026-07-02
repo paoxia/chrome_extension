@@ -146,8 +146,6 @@
       transition: all 0.2s;
       font-size: 14px;
     }
-    .copy-btn { background: #007aff; }
-    .copy-btn:hover { background: #0066d6; box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3); }
     .download-btn { background: #34c759; }
     .download-btn:hover { background: #30b853; box-shadow: 0 2px 8px rgba(52, 199, 89, 0.3); }
     .action-btn:active { transform: scale(0.92); }
@@ -164,22 +162,6 @@
       margin-bottom: 4px;
     }
     .empty-state-desc { font-size: 11px; }
-    .toast {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.8);
-      color: white;
-      padding: 10px 20px;
-      border-radius: 20px;
-      font-size: 12px;
-      opacity: 0;
-      transition: opacity 0.3s;
-      pointer-events: none;
-      z-index: 1000;
-    }
-    .toast.show { opacity: 1; }
   </style>
 </head>
 <body>
@@ -211,8 +193,6 @@
       <div class="empty-state-desc">正在自动检测当前页面视频...</div>
     </div>
   </div>
-
-  <div class="toast" id="toast"></div>
 
   <script src="popup.js"></script>
 </body>
