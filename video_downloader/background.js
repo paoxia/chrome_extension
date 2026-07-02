@@ -36,6 +36,36 @@ function getVideoExtension(url) {
   return '.mp4';
 }
 
+async function fetchVideoSize(url) {
+  try {
+    const response = await fetch(url, { method: 'HEAD' });
+    const contentLength = response.headers.get('Content-Length');
+    return contentLength ? parseInt(contentLength) : null;
+  } catch (error) {
+    console.error('获取视频大小失败:', error);
+    return null;
+  }
+}
+
+async function updateVideoSize(video) {
+  if (video.size !== null) return;
+  try {
+    const size = await fetchVideoSize(video.url);
+    if (size !== null) {
+      video.size = size;
+      chrome.storage.local.set({ 
+        videos: detectedVideos.filter(v => Date.now() - v.timestamp < 3600000)
+      });
+      chrome.runtime.sendMessage({
+        action: 'videoSizeUpdated',
+        video: video
+      }).catch(() => {});
+    }
+  } catch (error) {
+    console.error('更新视频大小失败:', error);
+  }
+}
+
 function getFilename(url, title = '') {
   try {
     const urlObj = new URL(url);
@@ -93,6 +123,8 @@ chrome.webRequest.onCompleted.addListener((details) => {
         action: 'videoDetected',
         video: newVideo
       }).catch(() => {});
+      
+      updateVideoSize(newVideo);
     }
   }
 }, { urls: ['<all_urls>'] }, ['responseHeaders']);
@@ -123,6 +155,8 @@ chrome.webRequest.onBeforeRequest.addListener((details) => {
       chrome.storage.local.set({ 
         videos: detectedVideos.filter(v => Date.now() - v.timestamp < 3600000)
       });
+      
+      updateVideoSize(newVideo);
     }
   }
 }, { urls: ['<all_urls>'] });
@@ -210,6 +244,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 timestamp: Date.now()
               };
               detectedVideos.push(newVideo);
+              updateVideoSize(newVideo);
             }
           });
           chrome.storage.local.set({ videos: detectedVideos });
@@ -234,6 +269,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     timestamp: Date.now()
                   };
                   detectedVideos.push(newVideo);
+                  updateVideoSize(newVideo);
                 }
               });
               chrome.storage.local.set({ videos: detectedVideos });

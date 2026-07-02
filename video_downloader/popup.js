@@ -93,7 +93,13 @@ document.addEventListener('DOMContentLoaded', function() {
     currentVideos = videos;
     videoCount.textContent = videos.length;
     
-    if (videos.length === 0) {
+    const sortedVideos = [...videos].sort((a, b) => {
+      const sizeA = a.size || 0;
+      const sizeB = b.size || 0;
+      return sizeB - sizeA;
+    });
+    
+    if (sortedVideos.length === 0) {
       videoList.innerHTML = `
         <div class="empty-state">
           <div class="empty-state-icon">🎬</div>
@@ -104,7 +110,7 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
 
-    videoList.innerHTML = videos.map(video => {
+    videoList.innerHTML = sortedVideos.map(video => {
       const escapedUrl = escapeHtml(video.url);
       const escapedFilename = escapeHtml(video.filename || video.title);
       const escapedType = video.mimeType ? escapeHtml(video.mimeType.split('/')[1].toUpperCase()) : 'Video';
@@ -241,6 +247,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'videoDetected') {
+      loadVideos();
+    }
+    if (message.action === 'videoSizeUpdated') {
       loadVideos();
     }
   });
