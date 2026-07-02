@@ -165,6 +165,11 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.title) {
     tabTitleCache[tabId] = changeInfo.title;
   }
+  if (changeInfo.url) {
+    // 页面导航到新URL，清理该标签页的旧视频
+    detectedVideos = detectedVideos.filter(v => v.tabId !== tabId);
+    chrome.storage.local.set({ videos: detectedVideos });
+  }
 });
 
 chrome.tabs.onActivated.addListener((activeInfo) => {
