@@ -1,13 +1,13 @@
 document.addEventListener('DOMContentLoaded', function() {
   const videoList = document.getElementById('videoList');
   const videoCount = document.getElementById('videoCount');
-  const scanBtn = document.getElementById('scanBtn');
-  const clearBtn = document.getElementById('clearBtn');
   const statusBadge = document.getElementById('statusBadge');
+  const filterSelect = document.getElementById('filterSelect');
   const toast = document.getElementById('toast');
-  
+
   let currentVideos = [];
   let isScanning = false;
+  let minSizeMB = 0;
 
   function showToast(message) {
     toast.textContent = message;
@@ -95,8 +95,13 @@ document.addEventListener('DOMContentLoaded', function() {
   function renderVideos(videos) {
     currentVideos = videos;
     videoCount.textContent = videos.length;
-    
-    const sortedVideos = [...videos].sort((a, b) => {
+
+    const minBytes = minSizeMB * 1024 * 1024;
+    const filteredVideos = minSizeMB > 0
+      ? videos.filter(v => v.size === null || v.size === undefined || v.size >= minBytes)
+      : videos;
+
+    const sortedVideos = [...filteredVideos].sort((a, b) => {
       const sizeA = a.size || 0;
       const sizeB = b.size || 0;
       return sizeB - sizeA;
@@ -107,7 +112,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="empty-state">
           <div class="empty-state-icon">🎬</div>
           <div class="empty-state-title">未检测到视频</div>
-          <div class="empty-state-desc">点击扫描按钮检测当前页面视频</div>
+          <div class="empty-state-desc">正在自动检测当前页面视频...</div>
         </div>
       `;
       return;
@@ -124,8 +129,10 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="video-icon">▶</div>
         <div class="video-info">
           <div class="video-name" title="${escapedFilename}">${escapedFilename}</div>
-          <div class="video-size">${formatSize(video.size)}</div>
-          <div class="video-type">${escapedType}</div>
+          <div class="video-meta">
+            <span class="video-size">${formatSize(video.size)}</span>
+            <span class="video-type">${escapedType}</span>
+          </div>
         </div>
         <div class="btn-group">
           <button class="action-btn copy-btn" title="复制链接（唤起迅雷）">📋</button>
@@ -212,34 +219,22 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  scanBtn.addEventListener('click', function() {
-    if (isScanning) return;
-    this.textContent = '扫描中...';
-    this.disabled = true;
-    statusBadge.textContent = '扫描中';
-    statusBadge.classList.add('scanning');
-    
-    chrome.runtime.sendMessage({ action: 'scanPage' }, (response) => {
-      if (response && response.success) {
-        loadVideos();
-      }
-      this.textContent = '🔍 扫描视频';
-      this.disabled = false;
-      statusBadge.textContent = '就绪';
-      statusBadge.classList.remove('scanning');
-    });
+  chrome.storage.local.get(['minSizeMB'], (result) => {
+    if (result.minSizeMB !== undefined) {
+      minSizeMB = result.minSizeMB;
+      filterSelect.value = String(minSizeMB);
+      renderVideos(currentVideos);
+    }
   });
 
-  clearBtn.addEventListener('click', function() {
-    chrome.runtime.sendMessage({ action: 'clearVideos' }, (response) => {
-      if (response && response.success) {
-        renderVideos([]);
-      }
-    });
+  filterSelect.addEventListener('change', function() {
+    minSizeMB = parseInt(this.value);
+    chrome.storage.local.set({ minSizeMB: minSizeMB });
+    renderVideos(currentVideos);
   });
 
   loadVideos();
-  
+
   setTimeout(() => {
     autoScan();
   }, 500);
