@@ -102,6 +102,33 @@ Bilibili 稍后观看批量管理工具：从关注的 UP 主动态中拉取自�
 
 ---
 
+### 5. 网页视频下载器 (video_downloader)
+
+自动检测并下载网页中的视频，支持多种视频格式和大小筛选。
+
+**主要功能：**
+- 🔍 通过 `webRequest` API 自动监控网络请求，实时检测视频资源
+- 📷 页面扫描模式，提取 `<video>` 和 `<source>` 标签中的视频链接
+- 📊 按文件大小筛选（可配置最小视频大小）
+- ⬇️ 一键下载，支持自定义文件名
+- 📁 支持多种视频格式：MP4、WebM、MKV、AVI、MOV、FLV、WMV、OGG、M3U8
+- 🧹 页面导航时自动清理旧视频列表
+
+**使用场景：**
+- 下载在线课程视频
+- 保存社交媒体上的精彩视频
+- 批量下载网页中的视频资源
+- 抓取直播回放视频
+
+**技术特点：**
+- 使用 Manifest V3
+- 通过 `webRequest.onCompleted` 和 `webRequest.onBeforeRequest` 双重拦截检测视频请求
+- 使用 `chrome.downloads` API 实现文件下载
+- Content Script 页面扫描作为补充，提高视频检测覆盖率
+- 视频信息临时存储在 `chrome.storage.local`，1小时后自动清理
+
+---
+
 ## 🚀 快速开始
 
 ### 安装扩展
@@ -134,7 +161,6 @@ chrome_extension/
 │   ├── content.js           # Content Script
 │   ├── popup.html           # 弹窗界面
 │   ├── popup.js             # 弹窗逻辑
-│   ├── images/              # 图片资源
 │   ├── README.md            # 子模块说明
 │   └── icon.png             # 扩展图标
 │
@@ -159,6 +185,14 @@ chrome_extension/
 │   ├── style.css            # 样式文件
 │   └── icon.png             # 扩展图标
 │
+├── video_downloader/        # 网页视频下载器
+│   ├── manifest.json        # 扩展配置文件
+│   ├── background.js        # Service Worker（webRequest 监控）
+│   ├── content.js           # Content Script（页面扫描）
+│   ├── popup.html           # 弹窗界面
+│   ├── popup.js             # 弹窗逻辑
+│   └── icon.png             # 扩展图标
+│
 ├── .gitignore               # Git 忽略配置（含 _metadata/）
 ├── LICENSE                  # 许可证文件
 └── README.md                # 本文件
@@ -170,7 +204,7 @@ chrome_extension/
 
 - **Chrome Extension Manifest V3**
 - **JavaScript (ES6+)**
-- **Chrome APIs**: `declarativeNetRequest`, `storage`, `cookies`, `tabs`, `activeTab`, `alarms`, `notifications`, `scripting`, `offscreen`
+- **Chrome APIs**: `declarativeNetRequest`, `storage`, `cookies`, `tabs`, `activeTab`, `alarms`, `notifications`, `scripting`, `offscreen`, `downloads`, `webRequest`
 
 ---
 
