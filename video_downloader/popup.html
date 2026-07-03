@@ -96,16 +96,29 @@
     }
     .video-item:last-child { margin-bottom: 0; }
     .video-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 50%, #f39c12 100%);
       display: flex;
       align-items: center;
       justify-content: center;
       color: white;
-      font-size: 16px;
+      font-size: 18px;
       flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(255, 107, 107, 0.35);
+      position: relative;
+      overflow: hidden;
+    }
+    .video-icon::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+      transform: rotate(30deg);
     }
     .video-info { flex: 1; min-width: 0; }
     .video-name {
