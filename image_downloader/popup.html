@@ -42,6 +42,49 @@
       justify-content: space-between;
       border-bottom: 1px solid #e5e5e7;
     }
+    .filter-bar {
+      padding: 8px 16px;
+      background-color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid #e5e5e7;
+      flex-wrap: wrap;
+    }
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: #666;
+    }
+    .filter-group input[type="number"] {
+      width: 48px;
+      padding: 3px 4px;
+      border: 1px solid #d2d2d7;
+      border-radius: 4px;
+      font-size: 11px;
+      text-align: center;
+      background-color: #f5f5f7;
+    }
+    .filter-group input[type="number"]:focus {
+      outline: none;
+      border-color: #007AFF;
+      background-color: #ffffff;
+    }
+    .filter-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: #666;
+      cursor: pointer;
+      margin-left: auto;
+    }
+    .filter-checkbox input {
+      margin: 0;
+      cursor: pointer;
+    }
     .status-badge {
       font-size: 12px;
       color: #666;
@@ -136,6 +179,26 @@
       font-size: 24px;
       color: white;
     }
+    .image-size-tag {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background-color: rgba(0,0,0,0.6);
+      color: white;
+      font-size: 10px;
+      padding: 2px 4px;
+      text-align: center;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .image-item:hover .image-size-tag {
+      opacity: 1;
+    }
+    .image-size-tag.unknown {
+      background-color: rgba(120,120,120,0.6);
+    }
     .empty-state {
       text-align: center;
       padding: 40px 20px;
@@ -181,6 +244,16 @@
   <div class="toolbar">
     <div class="status-badge" id="statusBadge">就绪</div>
     <button class="action-btn" id="refreshBtn">刷新</button>
+  </div>
+  <div class="filter-bar">
+    <div class="filter-group">
+      <span>最小大小</span>
+      <input type="number" id="minSize" placeholder="0" min="0" step="1">
+      <span>KB</span>
+    </div>
+    <label class="filter-checkbox">
+      <input type="checkbox" id="hideUnknown"> 隐藏未知大小
+    </label>
   </div>
   <div class="image-grid" id="imageGrid">
     <div class="empty-state">

@@ -70,6 +70,63 @@ function cleanTwitterUrl(url) {
   return url.replace(/&amp;/g, '&');
 }
 
+// 获取图片文件大小（字节）。优先用 Content-Length 头，缺失则读取 blob。
+async function fetchImageSize(url) {
+  try {
+    const response = await fetch(url, { method: 'GET', credentials: 'omit' });
+    if (!response.ok) return null;
+    const contentLength = response.headers.get('Content-Length');
+    if (contentLength) {
+      try { response.body?.cancel(); } catch (e) {}
+      const size = parseInt(contentLength, 10);
+      return isNaN(size) ? null : size;
+    }
+    const blob = await response.blob();
+    return blob.size || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// 为未获取过大小的图片异步获取文件大小
+let enriching = false;
+function enrichImageSizes() {
+  if (enriching) return;
+  const pending = detectedImages.filter(img => img.size == null);
+  if (pending.length === 0) return;
+  enriching = true;
+
+  const CONCURRENCY = 4;
+  let index = 0;
+  let changed = false;
+  let reported = 0;
+
+  function notify() {
+    if (!changed) return;
+    chrome.storage.local.set({ images: detectedImages });
+    chrome.runtime.sendMessage({ action: 'imageDetected' }).catch(() => {});
+  }
+
+  async function worker() {
+    while (index < pending.length) {
+      const img = pending[index++];
+      const size = await fetchImageSize(img.url);
+      if (size != null && size > 0) {
+        img.size = size;
+        changed = true;
+      }
+      reported++;
+      // 每获取 5 个或全部完成时刷新一次显示
+      if (reported % 5 === 0) notify();
+    }
+  }
+
+  Promise.all(Array.from({ length: Math.min(CONCURRENCY, pending.length) }, worker)).then(() => {
+    enriching = false;
+    notify();
+  });
+}
+
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.title) {
     tabTitleCache[tabId] = changeInfo.title;
@@ -169,6 +226,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           });
           chrome.storage.local.set({ images: detectedImages });
           sendResponse({ success: true, count: response.images.length });
+          enrichImageSizes();
         } else {
           sendResponse({ success: true });
         }
@@ -205,6 +263,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       chrome.storage.local.set({ images: detectedImages });
     }
     sendResponse({ success: true });
+    enrichImageSizes();
     return true;
   }
 
