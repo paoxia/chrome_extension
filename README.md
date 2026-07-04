@@ -129,6 +129,35 @@ Bilibili 稍后观看批量管理工具：从关注的 UP 主动态中拉取自�
 
 ---
 
+### 6. 网页图片下载器 (image_downloader)
+
+自动扫描网页中的所有图片并提供一键下载，支持按文件大小（KB）过滤，方便批量保存高质量图片。
+
+**主要功能：**
+- 🔍 多源扫描：`<img>` 元素（含 srcset/lazy 属性）、CSS 背景图、`<a>` 链接、内联脚本和 HTML 文本中的图片 URL
+- 📊 按文件大小（KB）过滤：设置最小大小阈值，快速过滤占位图、图标、tracking pixel 等小图
+- 👁 「隐藏未知大小」选项，仅显示已确认大小的图片
+- 🏷 悬停图片时显示文件大小标签（自动格式化为 B / KB / MB）
+- ⬇️ 一键下载，支持自动提取文件名（含 Twitter `format=` 参数解析）
+- 🔁 后台异步获取图片大小，结果实时刷新显示
+- 💾 过滤设置持久化保存，跨会话生效
+
+**使用场景：**
+- 批量下载网页中的高清原图
+- 过滤掉 1×1 占位图、小图标后保存有意义的图片
+- 抓取 Twitter / 社交媒体上的图片资源
+- 收集设计素材或参考资料
+
+**技术特点：**
+- 使用 Manifest V3
+- Content Script 负责页面扫描，通过正则匹配多种图片来源
+- Service Worker 利用 `host_permissions: <all_urls>` 跨域 `fetch` 获取图片大小（优先 `Content-Length` 头，缺失则回退读取 `blob.size`），并以 4 路并发异步填充
+- 使用 `chrome.downloads` API 实现文件下载
+- 针对 Twitter 图片自动添加 `Referer` / `User-Agent` 请求头
+- 图片信息临时存储在 `chrome.storage.local`，1小时后自动清理
+
+---
+
 ## 🚀 快速开始
 
 ### 安装扩展
@@ -191,6 +220,14 @@ chrome_extension/
 │   ├── content.js           # Content Script（页面扫描）
 │   ├── popup.html           # 弹窗界面
 │   ├── popup.js             # 弹窗逻辑
+│   └── icon.png             # 扩展图标
+│
+├── image_downloader/        # 网页图片下载器
+│   ├── manifest.json        # 扩展配置文件
+│   ├── background.js        # Service Worker（图片存储 / 大小获取 / 下载）
+│   ├── content.js           # Content Script（多源页面扫描）
+│   ├── popup.html           # 弹窗界面（含大小过滤栏）
+│   ├── popup.js             # 弹窗逻辑（过滤、渲染）
 │   └── icon.png             # 扩展图标
 │
 ├── .gitignore               # Git 忽略配置（含 _metadata/）
