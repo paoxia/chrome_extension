@@ -3,16 +3,6 @@ let imageIdCounter = 0;
 let tabTitleCache = {};
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.ico', '.jfif'];
-const IMAGE_MIME_TYPES = [
-  'image/jpeg',
-  'image/png',
-  'image/gif',
-  'image/bmp',
-  'image/webp',
-  'image/svg+xml',
-  'image/x-icon',
-  'image/jfif'
-];
 
 function isImageUrl(url) {
   if (!url) return false;
@@ -53,8 +43,19 @@ function getFilename(url, title = '') {
     const urlObj = new URL(url);
     const pathname = urlObj.pathname;
     let filename = pathname.split('/').pop();
-    if (filename && filename.length > 3) {
-      return decodeURIComponent(filename);
+    if (filename && filename.length > 0) {
+      filename = decodeURIComponent(filename);
+      const hasExtension = IMAGE_EXTENSIONS.some(ext => filename.toLowerCase().endsWith(ext));
+      if (!hasExtension) {
+        const formatMatch = url.toLowerCase().match(/format=([a-z]+)/);
+        if (formatMatch) {
+          const ext = '.' + formatMatch[1];
+          if (IMAGE_EXTENSIONS.includes(ext)) {
+            return filename + ext;
+          }
+        }
+      }
+      return filename;
     }
   } catch (e) {}
   const ext = getImageExtension(url);
@@ -67,31 +68,6 @@ function getFilename(url, title = '') {
 
 function cleanTwitterUrl(url) {
   return url.replace(/&amp;/g, '&');
-}
-
-async function fetchImageInfo(url) {
-  try {
-    const cleanUrl = cleanTwitterUrl(url);
-    const headers = {};
-    if (cleanUrl.includes('pbs.twimg.com')) {
-      headers['Referer'] = 'https://twitter.com/';
-      headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-    }
-
-    const response = await fetch(cleanUrl, { 
-      method: 'HEAD', 
-      redirect: 'follow',
-      headers: headers
-    });
-    const contentLength = response.headers.get('Content-Length');
-    const contentType = response.headers.get('Content-Type');
-    return {
-      size: contentLength ? parseInt(contentLength) : null,
-      type: contentType || ''
-    };
-  } catch (error) {
-    return { size: null, type: '' };
-  }
 }
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
@@ -126,11 +102,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.action === 'getAllImages') {
-    sendResponse({ images: detectedImages });
-    return true;
-  }
-
   if (message.action === 'downloadImage') {
     const { url, filename } = message;
     const cleanUrl = cleanTwitterUrl(url);
@@ -153,78 +124,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: true, downloadId: downloadId });
       } else {
         sendResponse({ success: false, error: chrome.runtime.lastError?.message || '下载失败' });
-      }
-    });
-    return true;
-  }
-
-  if (message.action === 'downloadAll') {
-    const { images } = message;
-    let successCount = 0;
-    let failCount = 0;
-    let completedCount = 0;
-    const total = images.length;
-
-    images.forEach((image, index) => {
-      setTimeout(() => {
-        const cleanUrl = cleanTwitterUrl(image.url);
-        const downloadOptions = {
-          url: cleanUrl,
-          filename: image.filename,
-          conflictAction: 'uniquify'
-        };
-
-        if (cleanUrl.includes('pbs.twimg.com')) {
-          downloadOptions.headers = [
-            { name: 'Referer', value: 'https://twitter.com/' },
-            { name: 'User-Agent', value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
-          ];
-        }
-
-        chrome.downloads.download(downloadOptions, (downloadId) => {
-          completedCount++;
-          if (downloadId) {
-            successCount++;
-          } else {
-            failCount++;
-          }
-
-          if (completedCount === total) {
-            sendResponse({ success: true, successCount, failCount, total });
-          }
-        });
-      }, index * 300);
-    });
-
-    return true;
-  }
-
-  if (message.action === 'copyUrl') {
-    const { url } = message;
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]) {
-        chrome.scripting.executeScript({
-          target: { tabId: tabs[0].id },
-          func: (url) => {
-            navigator.clipboard.writeText(url).then(() => {
-              console.log('URL copied');
-            }).catch(() => {
-              const textarea = document.createElement('textarea');
-              textarea.value = url;
-              document.body.appendChild(textarea);
-              textarea.select();
-              document.execCommand('copy');
-              document.body.removeChild(textarea);
-            });
-          },
-          args: [url]
-        }).then(() => {
-          sendResponse({ success: true });
-        }).catch((error) => {
-          sendResponse({ success: false, error: error.message });
-        });
-      } else {
-        sendResponse({ success: false, error: '没有活动标签页' });
       }
     });
     return true;
@@ -266,61 +165,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 timestamp: Date.now()
               };
               detectedImages.push(newImage);
-
-              if (newImage.size === null) {
-                fetchImageInfo(newImage.url).then(info => {
-                  if (info.size !== null) {
-                    newImage.size = info.size;
-                    newImage.mimeType = info.type;
-                    chrome.storage.local.set({ images: detectedImages });
-                  }
-                });
-              }
             }
           });
           chrome.storage.local.set({ images: detectedImages });
           sendResponse({ success: true, count: response.images.length });
         } else {
-          chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            func: scanPageFallback
-          }).then((results) => {
-            if (results && results[0] && results[0].result) {
-              results[0].result.forEach(img => {
-                const existing = detectedImages.find(i => i.url === img.url);
-                if (!existing) {
-                  const newImage = {
-                    id: ++imageIdCounter,
-                    url: img.url,
-                    filename: getFilename(img.url, displayTitle),
-                    title: displayTitle,
-                    size: img.size || null,
-                    width: img.width || null,
-                    height: img.height || null,
-                    mimeType: img.mimeType || '',
-                    tabId: tab.id,
-                    timestamp: Date.now()
-                  };
-                  detectedImages.push(newImage);
-
-                  if (newImage.size === null) {
-                    fetchImageInfo(newImage.url).then(info => {
-                      if (info.size !== null) {
-                        newImage.size = info.size;
-                        newImage.mimeType = info.type;
-                        chrome.storage.local.set({ images: detectedImages });
-                      }
-                    });
-                  }
-                }
-              });
-              chrome.storage.local.set({ images: detectedImages });
-            }
-            sendResponse({ success: true });
-          }).catch((error) => {
-            console.error('扫描页面失败:', error);
-            sendResponse({ success: false, error: error.message });
-          });
+          sendResponse({ success: true });
         }
       });
     });
@@ -350,16 +200,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             timestamp: Date.now()
           };
           detectedImages.push(newImage);
-
-          if (newImage.size === null) {
-            fetchImageInfo(newImage.url).then(info => {
-              if (info.size !== null) {
-                newImage.size = info.size;
-                newImage.mimeType = info.type;
-                chrome.storage.local.set({ images: detectedImages });
-              }
-            });
-          }
         }
       });
       chrome.storage.local.set({ images: detectedImages });
@@ -376,36 +216,3 @@ chrome.storage.local.get(['images'], (result) => {
     detectedImages = result.images.filter(img => Date.now() - img.timestamp < 3600000);
   }
 });
-
-function scanPageFallback() {
-  const images = [];
-  const urlSet = new Set();
-
-  document.querySelectorAll('img').forEach(img => {
-    const src = img.src || img.dataset.src || img.dataset.srcset;
-    if (src && src.startsWith('http') && !src.includes('data:')) {
-      const url = src.split(' ')[0];
-      if (!urlSet.has(url)) {
-        urlSet.add(url);
-        images.push({
-          url: url,
-          width: img.naturalWidth || img.width,
-          height: img.naturalHeight || img.height
-        });
-      }
-    }
-  });
-
-  const links = document.querySelectorAll('a');
-  links.forEach(link => {
-    const href = link.href || '';
-    if (href && href.startsWith('http') && isImageUrl(href)) {
-      if (!urlSet.has(href)) {
-        urlSet.add(href);
-        images.push({ url: href });
-      }
-    }
-  });
-
-  return images;
-}

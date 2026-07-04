@@ -2,10 +2,8 @@
   'use strict';
 
   const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.ico', '.jfif'];
-  const TWITTER_HOST = 'pbs.twimg.com';
 
   let capturedImageUrls = new Set();
-  let scanIntervalId = null;
 
   function isImageUrl(url) {
     if (!url) return false;
@@ -14,7 +12,7 @@
     if (lowerUrl.startsWith('blob:')) return false;
     if (lowerUrl.includes('chrome-extension:')) return false;
     if (IMAGE_EXTENSIONS.some(ext => lowerUrl.includes(ext))) return true;
-    if (lowerUrl.includes(TWITTER_HOST) && lowerUrl.includes('format=')) {
+    if (lowerUrl.includes('pbs.twimg.com') && lowerUrl.includes('format=')) {
       const formatMatch = lowerUrl.match(/format=([a-z]+)/);
       if (formatMatch && IMAGE_EXTENSIONS.some(ext => ext === '.' + formatMatch[1])) {
         return true;
@@ -27,13 +25,31 @@
     try {
       const urlObj = new URL(url);
       const pathname = urlObj.pathname;
-      const filename = pathname.split('/').pop();
-      if (filename && filename.length > 3) {
-        return decodeURIComponent(filename);
+      let filename = pathname.split('/').pop();
+      if (filename && filename.length > 0) {
+        filename = decodeURIComponent(filename);
+        const hasExtension = IMAGE_EXTENSIONS.some(ext => filename.toLowerCase().endsWith(ext));
+        if (!hasExtension) {
+          const formatMatch = url.toLowerCase().match(/format=([a-z]+)/);
+          if (formatMatch) {
+            const ext = '.' + formatMatch[1];
+            if (IMAGE_EXTENSIONS.includes(ext)) {
+              return filename + ext;
+            }
+          }
+          const extMatch = url.toLowerCase().match(/\.([a-z]{3,4})(?:[?&]|$)/);
+          if (extMatch) {
+            const ext = '.' + extMatch[1];
+            if (IMAGE_EXTENSIONS.includes(ext)) {
+              return filename + ext;
+            }
+          }
+        }
+        return filename;
       }
     } catch (e) {}
-    const extMatch = url.toLowerCase().match(/format=([a-z]+)/);
-    const ext = extMatch ? '.' + extMatch[1] : '.jpg';
+    const formatMatch = url.toLowerCase().match(/format=([a-z]+)/);
+    const ext = formatMatch ? '.' + formatMatch[1] : '.jpg';
     return 'image_' + Date.now() + ext;
   }
 
@@ -159,11 +175,7 @@
 
       const urlPatterns = [
         /["'](https?:\/\/[^"']+\.(?:jpg|jpeg|png|gif|bmp|webp|svg|ico|jfif)[^"']*)["']/gi,
-        /["'](https?:\/\/pbs\.twimg\.com\/[^"']+\?format=[^"']+)["']/gi,
-        /src\s*[:=]\s*["'](https?:\/\/[^"']+\.(?:jpg|jpeg|png|gif|bmp|webp|svg|ico|jfif)[^"']*)["']/gi,
-        /media_url\s*[:=]\s*["'](https?:\/\/[^"']+)["']/gi,
-        /mediaUrl\s*[:=]\s*["'](https?:\/\/[^"']+)["']/gi,
-        /original_url\s*[:=]\s*["'](https?:\/\/[^"']+)["']/gi
+        /["'](https?:\/\/pbs\.twimg\.com\/[^"']+\?format=[^"']+)["']/gi
       ];
 
       urlPatterns.forEach(pattern => {
@@ -255,57 +267,6 @@
     return allImages;
   }
 
-  function sendImagesToBackground(images) {
-    if (images.length > 0) {
-      chrome.runtime.sendMessage({
-        action: 'imageDetected',
-        images: images
-      }).catch(() => {});
-    }
-  }
-
-  function startPeriodicScan() {
-    if (scanIntervalId) {
-      clearInterval(scanIntervalId);
-    }
-
-    scanIntervalId = setInterval(() => {
-      try {
-        const newImages = scanAllImages();
-        const filteredImages = newImages.filter(img => !capturedImageUrls.has(img.url));
-        if (filteredImages.length > 0) {
-          filteredImages.forEach(img => capturedImageUrls.add(img.url));
-          sendImagesToBackground(filteredImages);
-        }
-      } catch (e) {
-        console.error('[Image Downloader] Periodic scan error:', e);
-      }
-    }, 5000);
-  }
-
-  function interceptNetworkRequests() {
-    const originalOpen = XMLHttpRequest.prototype.open;
-    XMLHttpRequest.prototype.open = function(method, url) {
-      if (typeof url === 'string') {
-        const cleanUrl = url.replace(/&amp;/g, '&');
-        if (isImageUrl(cleanUrl)) {
-          capturedImageUrls.add(cleanUrl);
-        }
-      }
-      return originalOpen.apply(this, arguments);
-    };
-
-    const originalFetch = window.fetch;
-    window.fetch = function(url, options) {
-      const urlString = typeof url === 'string' ? url : (url?.url || '');
-      const cleanUrl = urlString.replace(/&amp;/g, '&');
-      if (cleanUrl && isImageUrl(cleanUrl)) {
-        capturedImageUrls.add(cleanUrl);
-      }
-      return originalFetch.apply(this, arguments);
-    };
-  }
-
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'scanImages') {
       const images = scanAllImages();
@@ -314,19 +275,15 @@
     return true;
   });
 
-  interceptNetworkRequests();
-
   setTimeout(() => {
     const images = scanAllImages();
-    sendImagesToBackground(images);
-  }, 2000);
-
-  setTimeout(() => {
-    const images = scanAllImages();
-    sendImagesToBackground(images);
-  }, 5000);
-
-  startPeriodicScan();
+    if (images.length > 0) {
+      chrome.runtime.sendMessage({
+        action: 'imageDetected',
+        images: images
+      }).catch(() => {});
+    }
+  }, 3000);
 
   console.log('[Image Downloader] Content script loaded');
 })();
