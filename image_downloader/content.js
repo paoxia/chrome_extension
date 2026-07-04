@@ -1,9 +1,11 @@
 (function() {
   'use strict';
 
-  const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.ico'];
+  const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.ico', '.jfif'];
+  const TWITTER_HOST = 'pbs.twimg.com';
 
   let capturedImageUrls = new Set();
+  let scanIntervalId = null;
 
   function isImageUrl(url) {
     if (!url) return false;
@@ -12,6 +14,12 @@
     if (lowerUrl.startsWith('blob:')) return false;
     if (lowerUrl.includes('chrome-extension:')) return false;
     if (IMAGE_EXTENSIONS.some(ext => lowerUrl.includes(ext))) return true;
+    if (lowerUrl.includes(TWITTER_HOST) && lowerUrl.includes('format=')) {
+      const formatMatch = lowerUrl.match(/format=([a-z]+)/);
+      if (formatMatch && IMAGE_EXTENSIONS.some(ext => ext === '.' + formatMatch[1])) {
+        return true;
+      }
+    }
     return false;
   }
 
@@ -24,7 +32,9 @@
         return decodeURIComponent(filename);
       }
     } catch (e) {}
-    return 'image_' + Date.now();
+    const extMatch = url.toLowerCase().match(/format=([a-z]+)/);
+    const ext = extMatch ? '.' + extMatch[1] : '.jpg';
+    return 'image_' + Date.now() + ext;
   }
 
   function getPageTitle() {
@@ -41,9 +51,9 @@
     const urlSet = new Set();
 
     document.querySelectorAll('img').forEach(img => {
-      const src = img.src || img.dataset.src || img.dataset.srcset || img.dataset.lazySrc;
+      const src = img.src || img.currentSrc || img.dataset.src || img.dataset.srcset || img.dataset.lazySrc;
       if (src && src.startsWith('http') && !src.includes('data:')) {
-        const url = src.split(' ')[0];
+        const url = src.split(' ')[0].replace(/&amp;/g, '&');
         if (!urlSet.has(url) && isImageUrl(url)) {
           urlSet.add(url);
           images.push({
@@ -63,12 +73,13 @@
         const sources = srcset.split(',').map(s => s.trim());
         sources.forEach(source => {
           const [url] = source.split(' ');
-          if (url && url.startsWith('http') && !url.includes('data:') && !urlSet.has(url) && isImageUrl(url)) {
-            urlSet.add(url);
+          const cleanUrl = (url || '').replace(/&amp;/g, '&');
+          if (cleanUrl && cleanUrl.startsWith('http') && !cleanUrl.includes('data:') && !urlSet.has(cleanUrl) && isImageUrl(cleanUrl)) {
+            urlSet.add(cleanUrl);
             images.push({
-              url: url,
+              url: cleanUrl,
               title: getPageTitle(),
-              filename: extractFilename(url),
+              filename: extractFilename(cleanUrl),
               width: null,
               height: null,
               size: null,
@@ -94,7 +105,7 @@
         const urlMatch = bgImage.match(/url\(['"]?([^'")]+)['"]?\)/gi);
         if (urlMatch) {
           urlMatch.forEach(match => {
-            const url = match.replace(/url\(['"]?/, '').replace(/['"]?\)/, '');
+            const url = match.replace(/url\(['"]?/, '').replace(/['"]?\)/, '').replace(/&amp;/g, '&');
             if (url && url.startsWith('http') && !url.includes('data:') && !urlSet.has(url) && isImageUrl(url)) {
               urlSet.add(url);
               images.push({
@@ -121,12 +132,13 @@
 
     document.querySelectorAll('a').forEach(link => {
       const href = link.href || '';
-      if (href && href.startsWith('http') && isImageUrl(href) && !urlSet.has(href)) {
-        urlSet.add(href);
+      const cleanUrl = href.replace(/&amp;/g, '&');
+      if (cleanUrl && cleanUrl.startsWith('http') && isImageUrl(cleanUrl) && !urlSet.has(cleanUrl)) {
+        urlSet.add(cleanUrl);
         images.push({
-          url: href,
+          url: cleanUrl,
           title: getPageTitle(),
-          filename: extractFilename(href),
+          filename: extractFilename(cleanUrl),
           width: null,
           height: null,
           size: null,
@@ -146,16 +158,19 @@
       const content = script.textContent || '';
 
       const urlPatterns = [
-        /["'](https?:\/\/[^"']+\.(?:jpg|jpeg|png|gif|bmp|webp|svg|ico)[^"']*)["']/gi,
-        /src\s*[:=]\s*["'](https?:\/\/[^"']+\.(?:jpg|jpeg|png|gif|bmp|webp|svg|ico)[^"']*)["']/gi,
-        /url\s*[:=]\s*["'](https?:\/\/[^"']+\.(?:jpg|jpeg|png|gif|bmp|webp|svg|ico)[^"']*)["']/gi
+        /["'](https?:\/\/[^"']+\.(?:jpg|jpeg|png|gif|bmp|webp|svg|ico|jfif)[^"']*)["']/gi,
+        /["'](https?:\/\/pbs\.twimg\.com\/[^"']+\?format=[^"']+)["']/gi,
+        /src\s*[:=]\s*["'](https?:\/\/[^"']+\.(?:jpg|jpeg|png|gif|bmp|webp|svg|ico|jfif)[^"']*)["']/gi,
+        /media_url\s*[:=]\s*["'](https?:\/\/[^"']+)["']/gi,
+        /mediaUrl\s*[:=]\s*["'](https?:\/\/[^"']+)["']/gi,
+        /original_url\s*[:=]\s*["'](https?:\/\/[^"']+)["']/gi
       ];
 
       urlPatterns.forEach(pattern => {
         let match;
         while ((match = pattern.exec(content)) !== null) {
-          const url = match[1];
-          if (url && !url.includes('placeholder') && !url.includes('thumbnail') && !url.includes('preview') && !url.includes('emoji') && !urlSet.has(url)) {
+          const url = match[1].replace(/&amp;/g, '&');
+          if (url && !url.includes('placeholder') && !url.includes('thumbnail') && !url.includes('preview') && !url.includes('emoji') && !urlSet.has(url) && isImageUrl(url)) {
             urlSet.add(url);
             images.push({
               url: url,
@@ -181,14 +196,15 @@
     try {
       const htmlContent = document.documentElement.innerHTML;
       const urlPatterns = [
-        /["'](https?:\/\/[^"']+\.(?:jpg|jpeg|png|gif|bmp|webp|svg|ico)[^"']*)["']/gi
+        /["'](https?:\/\/[^"']+\.(?:jpg|jpeg|png|gif|bmp|webp|svg|ico|jfif)[^"']*)["']/gi,
+        /["'](https?:\/\/pbs\.twimg\.com\/[^"']+\?format=[^"']+)["']/gi
       ];
 
       urlPatterns.forEach(pattern => {
         let match;
         while ((match = pattern.exec(htmlContent)) !== null) {
-          const url = match[1];
-          if (url && !url.includes('placeholder') && !url.includes('thumbnail') && !url.includes('preview') && !url.includes('emoji') && !urlSet.has(url)) {
+          const url = match[1].replace(/&amp;/g, '&');
+          if (url && !url.includes('placeholder') && !url.includes('thumbnail') && !url.includes('preview') && !url.includes('emoji') && !urlSet.has(url) && isImageUrl(url)) {
             urlSet.add(url);
             images.push({
               url: url,
@@ -239,11 +255,42 @@
     return allImages;
   }
 
+  function sendImagesToBackground(images) {
+    if (images.length > 0) {
+      chrome.runtime.sendMessage({
+        action: 'imageDetected',
+        images: images
+      }).catch(() => {});
+    }
+  }
+
+  function startPeriodicScan() {
+    if (scanIntervalId) {
+      clearInterval(scanIntervalId);
+    }
+
+    scanIntervalId = setInterval(() => {
+      try {
+        const newImages = scanAllImages();
+        const filteredImages = newImages.filter(img => !capturedImageUrls.has(img.url));
+        if (filteredImages.length > 0) {
+          filteredImages.forEach(img => capturedImageUrls.add(img.url));
+          sendImagesToBackground(filteredImages);
+        }
+      } catch (e) {
+        console.error('[Image Downloader] Periodic scan error:', e);
+      }
+    }, 5000);
+  }
+
   function interceptNetworkRequests() {
     const originalOpen = XMLHttpRequest.prototype.open;
     XMLHttpRequest.prototype.open = function(method, url) {
-      if (typeof url === 'string' && isImageUrl(url)) {
-        capturedImageUrls.add(url);
+      if (typeof url === 'string') {
+        const cleanUrl = url.replace(/&amp;/g, '&');
+        if (isImageUrl(cleanUrl)) {
+          capturedImageUrls.add(cleanUrl);
+        }
       }
       return originalOpen.apply(this, arguments);
     };
@@ -251,8 +298,9 @@
     const originalFetch = window.fetch;
     window.fetch = function(url, options) {
       const urlString = typeof url === 'string' ? url : (url?.url || '');
-      if (urlString && isImageUrl(urlString)) {
-        capturedImageUrls.add(urlString);
+      const cleanUrl = urlString.replace(/&amp;/g, '&');
+      if (cleanUrl && isImageUrl(cleanUrl)) {
+        capturedImageUrls.add(cleanUrl);
       }
       return originalFetch.apply(this, arguments);
     };
@@ -270,13 +318,15 @@
 
   setTimeout(() => {
     const images = scanAllImages();
-    if (images.length > 0) {
-      chrome.runtime.sendMessage({
-        action: 'imageDetected',
-        images: images
-      }).catch(() => {});
-    }
-  }, 3000);
+    sendImagesToBackground(images);
+  }, 2000);
+
+  setTimeout(() => {
+    const images = scanAllImages();
+    sendImagesToBackground(images);
+  }, 5000);
+
+  startPeriodicScan();
 
   console.log('[Image Downloader] Content script loaded');
 })();

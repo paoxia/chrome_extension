@@ -2,7 +2,7 @@ let detectedImages = [];
 let imageIdCounter = 0;
 let tabTitleCache = {};
 
-const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.ico'];
+const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.ico', '.jfif'];
 const IMAGE_MIME_TYPES = [
   'image/jpeg',
   'image/png',
@@ -10,7 +10,8 @@ const IMAGE_MIME_TYPES = [
   'image/bmp',
   'image/webp',
   'image/svg+xml',
-  'image/x-icon'
+  'image/x-icon',
+  'image/jfif'
 ];
 
 function isImageUrl(url) {
@@ -20,6 +21,12 @@ function isImageUrl(url) {
   if (lowerUrl.startsWith('blob:')) return false;
   if (lowerUrl.includes('chrome-extension:')) return false;
   if (IMAGE_EXTENSIONS.some(ext => lowerUrl.includes(ext))) return true;
+  if (lowerUrl.includes('pbs.twimg.com') && lowerUrl.includes('format=')) {
+    const formatMatch = lowerUrl.match(/format=([a-z]+)/);
+    if (formatMatch && IMAGE_EXTENSIONS.some(ext => ext === '.' + formatMatch[1])) {
+      return true;
+    }
+  }
   return false;
 }
 
@@ -27,6 +34,15 @@ function getImageExtension(url) {
   for (const ext of IMAGE_EXTENSIONS) {
     if (url.toLowerCase().includes(ext)) {
       return ext;
+    }
+  }
+  if (url.toLowerCase().includes('pbs.twimg.com') && url.toLowerCase().includes('format=')) {
+    const formatMatch = url.toLowerCase().match(/format=([a-z]+)/);
+    if (formatMatch) {
+      const ext = '.' + formatMatch[1];
+      if (IMAGE_EXTENSIONS.includes(ext)) {
+        return ext;
+      }
     }
   }
   return '.jpg';
@@ -49,9 +65,24 @@ function getFilename(url, title = '') {
   return 'image_' + Date.now() + ext;
 }
 
+function cleanTwitterUrl(url) {
+  return url.replace(/&amp;/g, '&');
+}
+
 async function fetchImageInfo(url) {
   try {
-    const response = await fetch(url, { method: 'HEAD', redirect: 'follow' });
+    const cleanUrl = cleanTwitterUrl(url);
+    const headers = {};
+    if (cleanUrl.includes('pbs.twimg.com')) {
+      headers['Referer'] = 'https://twitter.com/';
+      headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+    }
+
+    const response = await fetch(cleanUrl, { 
+      method: 'HEAD', 
+      redirect: 'follow',
+      headers: headers
+    });
     const contentLength = response.headers.get('Content-Length');
     const contentType = response.headers.get('Content-Type');
     return {
@@ -102,12 +133,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === 'downloadImage') {
     const { url, filename } = message;
+    const cleanUrl = cleanTwitterUrl(url);
 
-    chrome.downloads.download({
-      url: url,
+    const downloadOptions = {
+      url: cleanUrl,
       filename: filename,
       conflictAction: 'uniquify'
-    }, (downloadId) => {
+    };
+
+    if (cleanUrl.includes('pbs.twimg.com')) {
+      downloadOptions.headers = [
+        { name: 'Referer', value: 'https://twitter.com/' },
+        { name: 'User-Agent', value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+      ];
+    }
+
+    chrome.downloads.download(downloadOptions, (downloadId) => {
       if (downloadId) {
         sendResponse({ success: true, downloadId: downloadId });
       } else {
@@ -126,11 +167,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     images.forEach((image, index) => {
       setTimeout(() => {
-        chrome.downloads.download({
-          url: image.url,
+        const cleanUrl = cleanTwitterUrl(image.url);
+        const downloadOptions = {
+          url: cleanUrl,
           filename: image.filename,
           conflictAction: 'uniquify'
-        }, (downloadId) => {
+        };
+
+        if (cleanUrl.includes('pbs.twimg.com')) {
+          downloadOptions.headers = [
+            { name: 'Referer', value: 'https://twitter.com/' },
+            { name: 'User-Agent', value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+          ];
+        }
+
+        chrome.downloads.download(downloadOptions, (downloadId) => {
           completedCount++;
           if (downloadId) {
             successCount++;
@@ -142,7 +193,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             sendResponse({ success: true, successCount, failCount, total });
           }
         });
-      }, index * 200);
+      }, index * 300);
     });
 
     return true;
