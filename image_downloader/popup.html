@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>图片下载器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      width: 360px;
+      max-height: 500px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #f5f5f7;
+      color: #1d1d1f;
+    }
+    .header {
+      padding: 12px 16px;
+      background-color: #007AFF;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .header-count {
+      font-size: 12px;
+      background-color: rgba(255,255,255,0.3);
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+    .toolbar {
+      padding: 8px 16px;
+      background-color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #e5e5e7;
+    }
+    .filter-bar {
+      padding: 8px 16px;
+      background-color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid #e5e5e7;
+      flex-wrap: wrap;
+    }
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: #666;
+    }
+    .filter-group input[type="number"] {
+      width: 48px;
+      padding: 3px 4px;
+      border: 1px solid #d2d2d7;
+      border-radius: 4px;
+      font-size: 11px;
+      text-align: center;
+      background-color: #f5f5f7;
+    }
+    .filter-group input[type="number"]:focus {
+      outline: none;
+      border-color: #007AFF;
+      background-color: #ffffff;
+    }
+    .filter-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: #666;
+      cursor: pointer;
+      margin-left: auto;
+    }
+    .filter-checkbox input {
+      margin: 0;
+      cursor: pointer;
+    }
+    .status-badge {
+      font-size: 12px;
+      color: #666;
+    }
+    .status-badge.scanning {
+      color: #007AFF;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .action-btn {
+      padding: 4px 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      background-color: #f5f5f7;
+      color: #1d1d1f;
+    }
+    .action-btn:hover {
+      background-color: #e5e5e7;
+    }
+    .action-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .image-grid {
+      max-height: 400px;
+      overflow-y: auto;
+      padding: 8px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .image-grid::-webkit-scrollbar {
+      width: 4px;
+    }
+    .image-grid::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    .image-grid::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 2px;
+    }
+    .image-item {
+      aspect-ratio: 1;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      position: relative;
+      border: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    .image-item:hover {
+      border-color: #007AFF;
+      transform: scale(1.02);
+    }
+    .image-item.downloading {
+      border-color: #FF9500;
+    }
+    .image-item.downloaded {
+      border-color: #34C759;
+    }
+    .image-thumb {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      background-color: #f5f5f7;
+    }
+    .download-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .image-item:hover .download-overlay {
+      opacity: 1;
+    }
+    .download-icon {
+      font-size: 24px;
+      color: white;
+    }
+    .image-size-tag {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background-color: rgba(0,0,0,0.6);
+      color: white;
+      font-size: 10px;
+      padding: 2px 4px;
+      text-align: center;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .image-item:hover .image-size-tag {
+      opacity: 1;
+    }
+    .image-size-tag.unknown {
+      background-color: rgba(120,120,120,0.6);
+    }
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+    }
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+    .empty-state-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1d1d1f;
+      margin-bottom: 4px;
+    }
+    .empty-state-desc {
+      font-size: 12px;
+      color: #888;
+    }
+    .toast {
+      position: fixed;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(0,0,0,0.8);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .toast.show {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-title">图片下载器</div>
+    <div class="header-count" id="imageCount">0</div>
+  </div>
+  <div class="toolbar">
+    <div class="status-badge" id="statusBadge">就绪</div>
+    <button class="action-btn" id="refreshBtn">刷新</button>
+  </div>
+  <div class="filter-bar">
+    <div class="filter-group">
+      <span>最小大小</span>
+      <input type="number" id="minSize" placeholder="0" min="0" step="1">
+      <span>KB</span>
+    </div>
+    <label class="filter-checkbox">
+      <input type="checkbox" id="hideUnknown"> 隐藏未知大小
+    </label>
+  </div>
+  <div class="image-grid" id="imageGrid">
+    <div class="empty-state">
+      <div class="empty-state-icon">🖼️</div>
+      <div class="empty-state-title">未检测到图片</div>
+      <div class="empty-state-desc">正在自动检测当前页面图片...</div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script src="popup.js"></script>
+</body>
+</html>
