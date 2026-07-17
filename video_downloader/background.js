@@ -19,6 +19,20 @@ const VIDEO_MIME_TYPES = [
 
 const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.ogg', '.m3u8'];
 
+const MIME_EXTENSION_MAP = {
+  'video/mp4': '.mp4',
+  'video/webm': '.webm',
+  'video/x-matroska': '.mkv',
+  'video/avi': '.avi',
+  'video/x-msvideo': '.avi',
+  'video/quicktime': '.mov',
+  'video/x-flv': '.flv',
+  'video/x-ms-wmv': '.wmv',
+  'video/ogg': '.ogg',
+  'application/x-mpegurl': '.m3u8',
+  'application/vnd.apple.mpegurl': '.m3u8'
+};
+
 function isVideoUrl(url) {
   if (!url) return false;
   const lowerUrl = url.toLowerCase();
@@ -27,7 +41,16 @@ function isVideoUrl(url) {
   return VIDEO_EXTENSIONS.some(ext => lowerUrl.includes(ext));
 }
 
-function getVideoExtension(url) {
+function getVideoExtension(url, mimeType = '', filename = '') {
+  const lowerFilename = filename.toLowerCase();
+  const filenameExtension = VIDEO_EXTENSIONS.find(ext => lowerFilename.endsWith(ext));
+  if (filenameExtension) return filenameExtension;
+
+  const normalizedMimeType = mimeType.split(';')[0].trim().toLowerCase();
+  if (MIME_EXTENSION_MAP[normalizedMimeType]) {
+    return MIME_EXTENSION_MAP[normalizedMimeType];
+  }
+
   for (const ext of VIDEO_EXTENSIONS) {
     if (url.toLowerCase().includes(ext)) {
       return ext;
@@ -66,24 +89,90 @@ async function updateVideoSize(video) {
   }
 }
 
-function getFilename(url, title = '') {
+function decodeFilename(filename) {
+  try {
+    return decodeURIComponent(filename);
+  } catch (e) {
+    return filename;
+  }
+}
+
+function sanitizeFilename(filename) {
+  if (!filename) return '';
+
+  let sanitized = decodeFilename(filename)
+    .replace(/[\u0000-\u001f\u0080-\u009f]/g, '')
+    .replace(/[\\/:*?"<>|]/g, '_')
+    .replace(/[. ]+$/g, '')
+    .trim();
+
+  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i.test(sanitized)) {
+    sanitized = '_' + sanitized;
+  }
+
+  return sanitized.substring(0, 180);
+}
+
+function hasVideoExtension(filename) {
+  const lowerFilename = filename.toLowerCase();
+  return VIDEO_EXTENSIONS.some(ext => lowerFilename.endsWith(ext));
+}
+
+function isUsefulFilename(filename) {
+  if (!filename) return false;
+  const extension = VIDEO_EXTENSIONS.find(ext => filename.toLowerCase().endsWith(ext)) || '';
+  const basename = extension ? filename.slice(0, -extension.length) : filename;
+
+  if (basename.length < 2 || /^\d+$/.test(basename)) return false;
+  if (/^[a-f0-9]{20,}$/i.test(basename)) return false;
+  return true;
+}
+
+function withVideoExtension(filename, extension) {
+  return hasVideoExtension(filename) ? filename : filename + extension;
+}
+
+function getContentDispositionFilename(responseHeaders = []) {
+  const header = responseHeaders.find(h => h.name.toLowerCase() === 'content-disposition');
+  if (!header?.value) return '';
+
+  const extendedMatch = header.value.match(/filename\*\s*=\s*(?:UTF-8'')?([^;]+)/i);
+  if (extendedMatch) {
+    return decodeFilename(extendedMatch[1].trim().replace(/^['"]|['"]$/g, ''));
+  }
+
+  const basicMatch = header.value.match(/filename\s*=\s*(?:"([^"]+)"|([^;]+))/i);
+  return basicMatch ? (basicMatch[1] || basicMatch[2]).trim() : '';
+}
+
+function getFilename(url, title = '', suggestedFilename = '', mimeType = '', serverFilename = '') {
+  let urlFilename = '';
   try {
     const urlObj = new URL(url);
-    const pathname = urlObj.pathname;
-    let filename = pathname.split('/').pop();
-    if (filename && filename.length > 3) {
-      const ext = getVideoExtension(url);
-      if (title) {
-        const cleanTitle = title.replace(/[\\/:*?"<>|]/g, '_');
-        return cleanTitle + ext;
-      }
-      return decodeURIComponent(filename);
-    }
+    urlFilename = urlObj.pathname.split('/').pop() || '';
   } catch (e) {}
-  const ext = getVideoExtension(url);
-  if (title) {
-    const cleanTitle = title.replace(/[\\/:*?"<>|]/g, '_');
-    return cleanTitle + ext;
+
+  const cleanServerFilename = sanitizeFilename(serverFilename);
+  const cleanTitle = sanitizeFilename(title);
+  const cleanSuggestedFilename = sanitizeFilename(suggestedFilename);
+  const cleanUrlFilename = sanitizeFilename(urlFilename);
+  const ext = getVideoExtension(
+    url,
+    mimeType,
+    cleanServerFilename || cleanSuggestedFilename || cleanUrlFilename
+  );
+
+  if (isUsefulFilename(cleanServerFilename)) {
+    return withVideoExtension(cleanServerFilename, ext);
+  }
+  if (cleanTitle) {
+    return withVideoExtension(cleanTitle, ext);
+  }
+  if (isUsefulFilename(cleanSuggestedFilename)) {
+    return withVideoExtension(cleanSuggestedFilename, ext);
+  }
+  if (isUsefulFilename(cleanUrlFilename)) {
+    return withVideoExtension(cleanUrlFilename, ext);
   }
   return `video_${Date.now()}${ext}`;
 }
@@ -93,6 +182,7 @@ chrome.webRequest.onCompleted.addListener((details) => {
   
   const url = details.url;
   const mimeType = details.responseHeaders?.find(h => h.name.toLowerCase() === 'content-type')?.value || '';
+  const serverFilename = getContentDispositionFilename(details.responseHeaders);
   
   if (VIDEO_MIME_TYPES.some(type => mimeType.includes(type)) || isVideoUrl(url)) {
     if (url.includes('blob:')) return;
@@ -106,7 +196,7 @@ chrome.webRequest.onCompleted.addListener((details) => {
       const newVideo = {
         id: ++videoIdCounter,
         url: url,
-        filename: getFilename(url, displayTitle),
+        filename: getFilename(url, displayTitle, '', mimeType, serverFilename),
         title: displayTitle,
         size: details.contentLength || null,
         mimeType: mimeType,
@@ -201,9 +291,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   
   if (message.action === 'downloadVideo') {
     const { url, filename } = message;
+    const safeFilename = getFilename(url, '', filename);
     chrome.downloads.download({
       url: url,
-      filename: filename,
+      filename: safeFilename,
       conflictAction: 'uniquify'
     }, (downloadId) => {
       if (downloadId) {
@@ -241,7 +332,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               const newVideo = {
                 id: ++videoIdCounter,
                 url: video.url,
-                filename: video.filename || getFilename(video.url, video.title || displayTitle),
+                filename: getFilename(
+                  video.url,
+                  video.title || displayTitle,
+                  video.filename || '',
+                  video.mimeType || ''
+                ),
                 title: video.title || displayTitle,
                 size: video.size || null,
                 mimeType: video.mimeType || '',
@@ -295,7 +391,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 chrome.storage.local.get(['videos'], (result) => {
   if (result.videos) {
-    detectedVideos = result.videos.filter(v => Date.now() - v.timestamp < 3600000);
+    detectedVideos = result.videos
+      .filter(v => Date.now() - v.timestamp < 3600000)
+      .map(video => ({
+        ...video,
+        filename: getFilename(
+          video.url,
+          video.title || '',
+          video.filename || '',
+          video.mimeType || ''
+        )
+      }));
   }
 });
 
