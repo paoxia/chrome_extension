@@ -7,9 +7,18 @@ document.addEventListener('DOMContentLoaded', function() {
   const toast = document.getElementById('toast');
   const minSizeInput = document.getElementById('minSize');
   const hideUnknownInput = document.getElementById('hideUnknown');
+  const selectionCount = document.getElementById('imageSelectionCount');
+  const selectAllBtn = document.getElementById('imageSelectAllBtn');
+  const clearSelectionBtn = document.getElementById('imageClearSelectionBtn');
+  const batchDownloadBtn = document.getElementById('imageBatchDownloadBtn');
 
   let currentImages = [];
   let isScanning = false;
+  let isBatchDownloading = false;
+  const selectedImageUrls = new Set();
+  const downloadingImageUrls = new Set();
+  const downloadedImageUrls = new Set();
+  const renderedImageItems = new Map();
   let filter = {
     minSize: 0,
     hideUnknown: false
@@ -67,9 +76,78 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 2000);
   }
 
+  function updateSelectionControls(filteredImages = applyFilter(currentImages)) {
+    const allVisibleSelected = filteredImages.length > 0
+      && filteredImages.every(img => selectedImageUrls.has(img.url));
+
+    selectionCount.textContent = `已选 ${selectedImageUrls.size}`;
+    selectAllBtn.disabled = isBatchDownloading || filteredImages.length === 0 || allVisibleSelected;
+    clearSelectionBtn.disabled = isBatchDownloading || selectedImageUrls.size === 0;
+    batchDownloadBtn.disabled = isBatchDownloading || selectedImageUrls.size === 0;
+    batchDownloadBtn.textContent = isBatchDownloading ? '下载中...' : '下载已选';
+  }
+
+  function syncImageItemState(url) {
+    const refs = renderedImageItems.get(url);
+    if (!refs) return;
+
+    const isSelected = selectedImageUrls.has(url);
+    refs.item.classList.toggle('selected', isSelected);
+    refs.item.classList.toggle('downloading', downloadingImageUrls.has(url));
+    refs.item.classList.toggle('downloaded', downloadedImageUrls.has(url));
+    refs.selectButton.classList.toggle('selected', isSelected);
+    refs.selectButton.textContent = isSelected ? '✓' : '';
+    refs.selectButton.setAttribute('aria-label', isSelected ? '取消选择图片' : '选择图片');
+    refs.selectButton.setAttribute('aria-pressed', String(isSelected));
+    refs.selectButton.disabled = isBatchDownloading;
+  }
+
+  function syncAllImageItemStates() {
+    renderedImageItems.forEach((_, url) => syncImageItemState(url));
+    updateSelectionControls();
+  }
+
+  function showDownloadedState(url) {
+    downloadedImageUrls.add(url);
+    syncImageItemState(url);
+    setTimeout(() => {
+      downloadedImageUrls.delete(url);
+      syncImageItemState(url);
+    }, 2000);
+  }
+
+  function downloadSingleImage(img) {
+    if (downloadingImageUrls.has(img.url)) return;
+
+    downloadingImageUrls.add(img.url);
+    syncImageItemState(img.url);
+
+    chrome.runtime.sendMessage({
+      action: 'downloadImage',
+      url: img.url,
+      filename: img.filename
+    }, (response) => {
+      const errorMessage = response?.error || chrome.runtime.lastError?.message;
+      downloadingImageUrls.delete(img.url);
+      syncImageItemState(img.url);
+
+      if (response && response.success) {
+        showDownloadedState(img.url);
+        showToast('下载已开始');
+      } else {
+        showToast(errorMessage ? `下载失败：${errorMessage}` : '下载失败');
+      }
+    });
+  }
+
   function renderImages(images) {
     currentImages = images;
     const filtered = applyFilter(images);
+    const availableUrls = new Set(images.map(img => img.url));
+    selectedImageUrls.forEach((url) => {
+      if (!availableUrls.has(url)) selectedImageUrls.delete(url);
+    });
+    renderedImageItems.clear();
     imageCount.textContent = `${filtered.length}/${images.length}`;
     imageTabCount.textContent = images.length;
 
@@ -81,6 +159,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="empty-state-desc">${images.length === 0 ? '点击刷新按钮重新扫描页面...' : '调整过滤条件后重试...'}</div>
         </div>
       `;
+      updateSelectionControls(filtered);
       return;
     }
 
@@ -88,6 +167,7 @@ document.addEventListener('DOMContentLoaded', function() {
     filtered.forEach(img => {
       const item = document.createElement('div');
       item.className = 'image-item';
+      item.title = '点击下载，左上角勾选后可批量下载';
 
       const hasSize = img.size != null && img.size > 0;
       const sizeTag = hasSize
@@ -108,33 +188,85 @@ document.addEventListener('DOMContentLoaded', function() {
       thumbnail.addEventListener('error', () => thumbnail.classList.add('load-error'));
       item.prepend(thumbnail);
 
-      item.addEventListener('click', function() {
-        if (item.classList.contains('downloading')) return;
-
-        item.classList.add('downloading');
-
-        chrome.runtime.sendMessage({
-          action: 'downloadImage',
-          url: img.url,
-          filename: img.filename
-        }, (response) => {
-          item.classList.remove('downloading');
-          const errorMessage = response?.error || chrome.runtime.lastError?.message;
-          if (response && response.success) {
-            item.classList.add('downloaded');
-            showToast('下载已开始');
-            setTimeout(() => {
-              item.classList.remove('downloaded');
-            }, 2000);
-          } else {
-            showToast(errorMessage ? `下载失败：${errorMessage}` : '下载失败');
-          }
-        });
+      const selectButton = document.createElement('button');
+      selectButton.type = 'button';
+      selectButton.className = 'image-select-btn';
+      selectButton.addEventListener('click', function(event) {
+        event.stopPropagation();
+        if (isBatchDownloading) return;
+        if (selectedImageUrls.has(img.url)) {
+          selectedImageUrls.delete(img.url);
+        } else {
+          selectedImageUrls.add(img.url);
+        }
+        syncImageItemState(img.url);
+        updateSelectionControls(filtered);
       });
+      item.appendChild(selectButton);
+
+      item.addEventListener('click', () => downloadSingleImage(img));
 
       imageGrid.appendChild(item);
+      renderedImageItems.set(img.url, { item, selectButton });
+      syncImageItemState(img.url);
     });
+
+    updateSelectionControls(filtered);
   }
+
+  selectAllBtn.addEventListener('click', () => {
+    applyFilter(currentImages).forEach(img => selectedImageUrls.add(img.url));
+    syncAllImageItemStates();
+  });
+
+  clearSelectionBtn.addEventListener('click', () => {
+    selectedImageUrls.clear();
+    syncAllImageItemStates();
+  });
+
+  batchDownloadBtn.addEventListener('click', () => {
+    if (isBatchDownloading) return;
+
+    const selectedImages = currentImages.filter(img => selectedImageUrls.has(img.url));
+    if (selectedImages.length === 0) {
+      showToast('请先选择图片');
+      return;
+    }
+
+    isBatchDownloading = true;
+    selectedImages.forEach(img => downloadingImageUrls.add(img.url));
+    syncAllImageItemStates();
+
+    chrome.runtime.sendMessage({
+      action: 'downloadImages',
+      images: selectedImages.map(img => ({ url: img.url, filename: img.filename }))
+    }, (response) => {
+      const runtimeError = chrome.runtime.lastError?.message;
+      isBatchDownloading = false;
+      selectedImages.forEach(img => downloadingImageUrls.delete(img.url));
+
+      const results = response?.results || [];
+      const successfulResults = results.filter(result => result.success);
+      successfulResults.forEach((result) => {
+        selectedImageUrls.delete(result.url);
+        showDownloadedState(result.url);
+      });
+      syncAllImageItemStates();
+
+      if (!response) {
+        showToast(runtimeError ? `批量下载失败：${runtimeError}` : '批量下载失败');
+        return;
+      }
+
+      if (response.failed > 0) {
+        const firstError = results.find(result => !result.success)?.error;
+        const summary = `已开始 ${response.succeeded} 张，失败 ${response.failed} 张`;
+        showToast(firstError ? `${summary}：${firstError}` : summary);
+      } else {
+        showToast(`已开始下载 ${response.succeeded} 张图片`);
+      }
+    });
+  });
 
   function loadImages() {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
