@@ -36,13 +36,16 @@ document.addEventListener('DOMContentLoaded', async function() {
   }
 
   function updateLabel(range) {
-    countLabel.textContent = `${range.value} ${unitLabel(range.unit)}内未观看的视频`;
+    countLabel.textContent = `${range.value} ${unitLabel(range.unit)}内可添加的视频`;
   }
 
   function refreshCount() {
     chrome.runtime.sendMessage({ action: 'getVideoCount' }, function(response) {
       if (response && response.count !== undefined) {
         videoCount.textContent = response.count;
+        videoCount.title = response.skipped > 0 ? `已跳过 ${response.skipped} 个添加过的视频` : '';
+      } else {
+        videoCount.textContent = '0';
       }
     });
   }
@@ -73,7 +76,20 @@ document.addEventListener('DOMContentLoaded', async function() {
       addWatchLaterBtn.textContent = '一键添加到稍后观看';
 
       if (response && response.success) {
-        addLog(`成功添加 ${response.count} 个视频到稍后观看`, 'success');
+        if (response.count > 0) {
+          addLog(`成功添加 ${response.count} 个视频到稍后观看`, 'success');
+        } else {
+          addLog('没有需要添加的新视频', 'success');
+        }
+        if (response.skipped > 0) {
+          addLog(`已跳过 ${response.skipped} 个添加过的视频`);
+        }
+        if (response.errors?.length > 0) {
+          addLog(`有 ${response.errors.length} 个视频添加失败：${response.errors[0]}`, 'error');
+        }
+        if (response.remoteCheckFailed) {
+          addLog('远端稍后观看列表暂不可用，本次已使用本地记录去重');
+        }
         videoCount.textContent = '0';
       } else {
         addLog('操作失败: ' + (response?.error || '未知错误'), 'error');
