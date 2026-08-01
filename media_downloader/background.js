@@ -1,3 +1,5 @@
+importScripts('image-background.js');
+
 let detectedVideos = [];
 let videoIdCounter = 0;
 let tabTitleCache = {};

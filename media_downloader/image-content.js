@@ -271,8 +271,9 @@
     if (message.action === 'scanImages') {
       const images = scanAllImages();
       sendResponse({ images: images });
+      return true;
     }
-    return true;
+    return false;
   });
 
   setTimeout(() => {

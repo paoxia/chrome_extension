@@ -102,62 +102,34 @@ Bilibili 稍后观看批量管理工具：从关注的 UP 主动态中拉取自�
 
 ---
 
-### 5. 网页视频下载器 (video_downloader)
+### 5. 网页媒体下载器 (media_downloader)
 
-自动检测并下载网页中的视频，支持多种视频格式和大小筛选。
+在一个扩展中统一检测和下载网页视频、图片，通过标签页快速切换两类资源。
 
 **主要功能：**
-- 🔍 通过 `webRequest` API 自动监控网络请求，实时检测视频资源
-- 📷 页面扫描模式，提取 `<video>` 和 `<source>` 标签中的视频链接
-- 📊 按文件大小筛选（可配置最小视频大小）
-- ⬇️ 一键下载，支持自定义文件名
-- 📁 支持多种视频格式：MP4、WebM、MKV、AVI、MOV、FLV、WMV、OGG、M3U8
-- ⚡ 支持将视频链接、页面文件名和来源页面信息发送到迅雷下载
-- ✏️ 下载前可直接编辑视频文件名，保留浏览器下载作为备用方式
-- 🧹 页面导航时自动清理旧视频列表
+- 🎬 视频模式：通过 `webRequest` 和页面扫描检测视频，可按大小过滤并编辑文件名
+- ⚡ 视频可选择浏览器或迅雷下载，并向迅雷传递文件名、大小和来源页面信息
+- 🖼️ 图片模式：扫描 `<img>`、`srcset`、CSS 背景图、链接、脚本和 HTML 中的图片地址
+- 📊 图片支持按 KB 过滤、隐藏未知大小，并在缩略图上显示文件大小
+- ✅ 图片支持多选、全选当前过滤结果和批量下载，并保留单张点击下载
+- 📁 支持 MP4、WebM、MKV、AVI、MOV、FLV、WMV、OGG、M3U8 及常见图片格式
+- 🔁 页面导航时自动清理旧资源，视频和图片过滤设置分别持久化保存
 
 **使用场景：**
 - 下载在线课程视频
-- 保存社交媒体上的精彩视频
-- 批量下载网页中的视频资源
-- 抓取直播回放视频
+- 保存社交媒体上的视频和高清图片
+- 过滤占位图、小图标后收集设计素材
+- 抓取网页视频、直播回放和页面图片资源
 
 **技术特点：**
 - 使用 Manifest V3
 - 通过 `webRequest.onCompleted` 和 `webRequest.onBeforeRequest` 双重拦截检测视频请求
 - 使用 `chrome.downloads` API 实现文件下载
 - 通过迅雷客户端本机任务接口创建带自定义文件名的下载任务
-- Content Script 页面扫描作为补充，提高视频检测覆盖率
-- 视频信息临时存储在 `chrome.storage.local`，1小时后自动清理
-
----
-
-### 6. 网页图片下载器 (image_downloader)
-
-自动扫描网页中的所有图片并提供一键下载，支持按文件大小（KB）过滤，方便批量保存高质量图片。
-
-**主要功能：**
-- 🔍 多源扫描：`<img>` 元素（含 srcset/lazy 属性）、CSS 背景图、`<a>` 链接、内联脚本和 HTML 文本中的图片 URL
-- 📊 按文件大小（KB）过滤：设置最小大小阈值，快速过滤占位图、图标、tracking pixel 等小图
-- 👁 「隐藏未知大小」选项，仅显示已确认大小的图片
-- 🏷 悬停图片时显示文件大小标签（自动格式化为 B / KB / MB）
-- ⬇️ 一键下载，支持自动提取文件名（含 Twitter `format=` 参数解析）
-- 🔁 后台异步获取图片大小，结果实时刷新显示
-- 💾 过滤设置持久化保存，跨会话生效
-
-**使用场景：**
-- 批量下载网页中的高清原图
-- 过滤掉 1×1 占位图、小图标后保存有意义的图片
-- 抓取 Twitter / 社交媒体上的图片资源
-- 收集设计素材或参考资料
-
-**技术特点：**
-- 使用 Manifest V3
-- Content Script 负责页面扫描，通过正则匹配多种图片来源
+- 两个独立 Content Script 分别负责视频和图片扫描，避免检测逻辑互相干扰
 - Service Worker 利用 `host_permissions: <all_urls>` 跨域 `fetch` 获取图片大小（优先 `Content-Length` 头，缺失则回退读取 `blob.size`），并以 4 路并发异步填充
-- 使用 `chrome.downloads` API 实现文件下载
-- 针对 Twitter 图片自动添加 `Referer` / `User-Agent` 请求头
-- 图片信息临时存储在 `chrome.storage.local`，1小时后自动清理
+- Twitter 图片使用浏览器原生下载流程，避免受限请求头导致任务创建失败
+- 视频和图片信息分别存储在 `chrome.storage.local`，1小时后自动清理
 
 ---
 
@@ -217,20 +189,15 @@ chrome_extension/
 │   ├── style.css            # 样式文件
 │   └── icon.png             # 扩展图标
 │
-├── video_downloader/        # 网页视频下载器
+├── media_downloader/        # 网页媒体下载器（视频 + 图片）
 │   ├── manifest.json        # 扩展配置文件
-│   ├── background.js        # Service Worker（webRequest 监控）
-│   ├── content.js           # Content Script（页面扫描）
-│   ├── popup.html           # 弹窗界面
-│   ├── popup.js             # 弹窗逻辑
-│   └── icon.png             # 扩展图标
-│
-├── image_downloader/        # 网页图片下载器
-│   ├── manifest.json        # 扩展配置文件
-│   ├── background.js        # Service Worker（图片存储 / 大小获取 / 下载）
-│   ├── content.js           # Content Script（多源页面扫描）
-│   ├── popup.html           # 弹窗界面（含大小过滤栏）
-│   ├── popup.js             # 弹窗逻辑（过滤、渲染）
+│   ├── background.js        # Service Worker（视频检测 / 下载 / 迅雷）
+│   ├── image-background.js  # 图片存储 / 大小获取 / 下载
+│   ├── content.js           # 视频页面扫描
+│   ├── image-content.js     # 图片多源页面扫描
+│   ├── popup.html           # 视频 / 图片统一标签页界面
+│   ├── popup.js             # 视频界面及标签切换逻辑
+│   ├── image-popup.js       # 图片过滤和缩略图逻辑
 │   └── icon.png             # 扩展图标
 │
 ├── .gitignore               # Git 忽略配置（含 _metadata/）

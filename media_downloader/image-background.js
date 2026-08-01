@@ -1,3 +1,6 @@
+(() => {
+'use strict';
+
 let detectedImages = [];
 let imageIdCounter = 0;
 let tabTitleCache = {};
@@ -68,6 +71,42 @@ function getFilename(url, title = '') {
 
 function cleanTwitterUrl(url) {
   return url.replace(/&amp;/g, '&');
+}
+
+function startImageDownload(image) {
+  return new Promise((resolve) => {
+    if (!image || !image.url) {
+      resolve({ success: false, url: image?.url || '', error: '图片地址无效' });
+      return;
+    }
+
+    const downloadOptions = {
+      url: cleanTwitterUrl(image.url),
+      filename: image.filename,
+      conflictAction: 'uniquify'
+    };
+
+    try {
+      chrome.downloads.download(downloadOptions, (downloadId) => {
+        const error = chrome.runtime.lastError?.message;
+        if (downloadId !== undefined) {
+          resolve({ success: true, url: image.url, downloadId });
+        } else {
+          resolve({ success: false, url: image.url, error: error || '下载失败' });
+        }
+      });
+    } catch (error) {
+      resolve({ success: false, url: image.url, error: error.message || '下载失败' });
+    }
+  });
+}
+
+async function startImageBatchDownload(images) {
+  const results = [];
+  for (const image of images) {
+    results.push(await startImageDownload(image));
+  }
+  return results;
 }
 
 // 获取图片文件大小（字节）。优先用 Content-Length 头，缺失则读取 blob。
@@ -161,27 +200,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === 'downloadImage') {
     const { url, filename } = message;
-    const cleanUrl = cleanTwitterUrl(url);
+    startImageDownload({ url, filename }).then(sendResponse);
+    return true;
+  }
 
-    const downloadOptions = {
-      url: cleanUrl,
-      filename: filename,
-      conflictAction: 'uniquify'
-    };
-
-    if (cleanUrl.includes('pbs.twimg.com')) {
-      downloadOptions.headers = [
-        { name: 'Referer', value: 'https://twitter.com/' },
-        { name: 'User-Agent', value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
-      ];
+  if (message.action === 'downloadImages') {
+    const images = Array.isArray(message.images) ? message.images : [];
+    if (images.length === 0) {
+      sendResponse({ success: false, total: 0, succeeded: 0, failed: 0, results: [], error: '未选择图片' });
+      return true;
     }
 
-    chrome.downloads.download(downloadOptions, (downloadId) => {
-      if (downloadId) {
-        sendResponse({ success: true, downloadId: downloadId });
-      } else {
-        sendResponse({ success: false, error: chrome.runtime.lastError?.message || '下载失败' });
-      }
+    startImageBatchDownload(images).then((results) => {
+      const succeeded = results.filter(result => result.success).length;
+      const failed = results.length - succeeded;
+      sendResponse({
+        success: failed === 0,
+        total: results.length,
+        succeeded,
+        failed,
+        results
+      });
     });
     return true;
   }
@@ -193,7 +232,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.action === 'scanPage') {
+  if (message.action === 'scanImagesPage') {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (!tabs[0]) {
         sendResponse({ success: false, error: '没有活动标签页' });
@@ -275,3 +314,5 @@ chrome.storage.local.get(['images'], (result) => {
     detectedImages = result.images.filter(img => Date.now() - img.timestamp < 3600000);
   }
 });
+
+})();
