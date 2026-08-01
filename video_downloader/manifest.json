@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "网页视频下载器",
-  "version": "1.0.0",
-  "description": "自动检测并下载网页中的视频",
+  "version": "1.1.0",
+  "description": "自动检测网页视频，支持浏览器和迅雷下载",
   "icons": {
     "128": "icon.png"
   },
