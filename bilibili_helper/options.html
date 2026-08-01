@@ -14,6 +14,7 @@
       --text-soft: #61666d;
       --text-mute: #9499a0;
       --success: #52c41a;
+      --error: #ff4d4f;
       --shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.04);
     }
 
@@ -131,6 +132,35 @@
     .save-status.visible {
       opacity: 1;
     }
+    .history-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .history-count {
+      flex: 1;
+      font-size: 12px;
+      color: var(--text-soft);
+    }
+    .clear-history-btn {
+      padding: 7px 10px;
+      border: 1px solid #ffd1d2;
+      border-radius: 7px;
+      color: var(--error);
+      background: #fff;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+    }
+    .clear-history-btn:hover:not(:disabled) { background: #fff5f5; }
+    .clear-history-btn:disabled { cursor: not-allowed; opacity: 0.45; }
+    .history-status {
+      min-height: 16px;
+      margin-top: 8px;
+      color: var(--success);
+      font-size: 11px;
+    }
+    .history-status.error { color: var(--error); }
   </style>
 </head>
 <body>
@@ -151,7 +181,17 @@
       </select>
       <span class="save-status" id="saveStatus">已保存</span>
     </div>
-    <div class="helper-text">动态 feed 中此范围内发布的视频会被识别为"未观看"。</div>
+    <div class="helper-text">动态 feed 中此范围内发布、且没有添加过的视频会被识别为可添加。</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🧹 去重记录</div>
+    <div class="history-row">
+      <span class="history-count" id="historyCount">正在读取当前账号记录...</span>
+      <button class="clear-history-btn" id="clearHistoryBtn" disabled>清除本地记录</button>
+    </div>
+    <div class="helper-text">记录按账号保存，超过 32 天会自动清理，每个账号最多保留 5000 条。当前仍在稍后观看列表中的视频会在下次扫描时重新同步。</div>
+    <div class="history-status" id="historyStatus"></div>
   </div>
 
   <script src="options.js"></script>

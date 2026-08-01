@@ -59,6 +59,7 @@ Bilibili 稍后观看批量管理工具：从关注的 UP 主动态中拉取自�
 **主要功能：**
 - 📊 自动统计关注 UP 主在指定范围内更新的视频数量并显示在弹窗
 - ⏰ 一键将这些视频批量加入稍后观看
+- ♻️ 自动跳过本地记录或当前稍后观看列表中已经添加过的视频
 - ⚙️ 独立的嵌入式设置页（齿轮入口），可自定义时间范围（1-30 小时 / 天）
 - 💾 设置持久化保存（chrome.storage.local），跨会话生效
 - ▶ 快速跳转到稍后观看播放页 / 列表页
@@ -74,6 +75,8 @@ Bilibili 稍后观看批量管理工具：从关注的 UP 主动态中拉取自�
 - 通过 Bilibili Web 动态 feed API（`/x/polymer/web-dynamic/v1/feed/all`）抓取关注流，并按发布时间过滤
 - 使用 `declarativeNetRequest` 静态规则改写 `toview/add` 请求的 `Origin` / `Referer`，解决 Service Worker 中 fetch 对受限请求头无法直接设置的问题
 - 复用浏览器中已登录的 Bilibili cookie（`SESSDATA` / `bili_jct`），无需额外登录
+- 按 Bilibili 账号持久化成功添加的 AID；记录保留 32 天且每个账号最多 5000 条，避免无限增长
+- 远端稍后观看列表不可用时自动退回本地记录去重，不影响正常添加
 - 通过 `options_ui`（嵌入式弹层）独立呈现设置，弹窗界面保持简洁
 - 设置变更后通过 `chrome.storage.onChanged` 实时同步弹窗的计数和文案
 
