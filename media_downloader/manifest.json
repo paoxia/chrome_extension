@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "网页视频下载器",
-  "version": "1.1.0",
-  "description": "自动检测网页视频，支持浏览器和迅雷下载",
+  "name": "网页媒体下载器",
+  "version": "2.0.0",
+  "description": "统一检测并下载网页中的视频和图片，视频支持迅雷下载",
   "icons": {
     "128": "icon.png"
   },
@@ -27,7 +27,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "js": ["content.js", "image-content.js"],
       "run_at": "document_idle"
     }
   ]

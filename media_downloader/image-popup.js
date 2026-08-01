@@ -1,8 +1,9 @@
 document.addEventListener('DOMContentLoaded', function() {
   const imageGrid = document.getElementById('imageGrid');
   const imageCount = document.getElementById('imageCount');
-  const statusBadge = document.getElementById('statusBadge');
-  const refreshBtn = document.getElementById('refreshBtn');
+  const imageTabCount = document.getElementById('imageTabCount');
+  const statusBadge = document.getElementById('imageStatusBadge');
+  const refreshBtn = document.getElementById('imageRefreshBtn');
   const toast = document.getElementById('toast');
   const minSizeInput = document.getElementById('minSize');
   const hideUnknownInput = document.getElementById('hideUnknown');
@@ -70,6 +71,7 @@ document.addEventListener('DOMContentLoaded', function() {
     currentImages = images;
     const filtered = applyFilter(images);
     imageCount.textContent = `${filtered.length}/${images.length}`;
+    imageTabCount.textContent = images.length;
 
     if (filtered.length === 0) {
       imageGrid.innerHTML = `
@@ -93,12 +95,18 @@ document.addEventListener('DOMContentLoaded', function() {
         : `<div class="image-size-tag unknown">未知大小</div>`;
 
       item.innerHTML = `
-        <img class="image-thumb" src="${img.url}" alt="" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'120\' height=\'120\' viewBox=\'0 0 24 24\' fill=\'%23f5f5f7\' stroke=\'%23ccc\' stroke-width=\'1.5\'%3E%3Crect x=\'3\' y=\'3\' width=\'18\' height=\'18\' rx=\'2\'/%3E%3Ccircle cx=\'8.5\' cy=\'8.5\' r=\'1.5\'/%3E%3Cpolyline points=\'21 15 16 10 5 21\'/%3E%3C/svg%3E'">
         <div class="download-overlay">
           <div class="download-icon">⬇️</div>
         </div>
         ${sizeTag}
       `;
+
+      const thumbnail = document.createElement('img');
+      thumbnail.className = 'image-thumb';
+      thumbnail.alt = '';
+      thumbnail.src = img.url;
+      thumbnail.addEventListener('error', () => thumbnail.classList.add('load-error'));
+      item.prepend(thumbnail);
 
       item.addEventListener('click', function() {
         if (item.classList.contains('downloading')) return;
@@ -145,12 +153,13 @@ document.addEventListener('DOMContentLoaded', function() {
   async function autoScan() {
     if (isScanning) return;
     isScanning = true;
+    refreshBtn.disabled = true;
     statusBadge.textContent = '扫描中';
     statusBadge.classList.add('scanning');
 
     try {
       await new Promise((resolve) => {
-        chrome.runtime.sendMessage({ action: 'scanPage' }, (response) => {
+        chrome.runtime.sendMessage({ action: 'scanImagesPage' }, (response) => {
           resolve(response);
         });
       });
@@ -159,6 +168,7 @@ document.addEventListener('DOMContentLoaded', function() {
       console.error('自动扫描失败:', error);
     } finally {
       isScanning = false;
+      refreshBtn.disabled = false;
       statusBadge.textContent = '就绪';
       statusBadge.classList.remove('scanning');
     }

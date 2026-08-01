@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>网页媒体下载器</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      width: 380px;
+      margin: 0;
+      padding: 14px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #1d1d1f;
+      background: #f5f5f7;
+    }
+    button, input, select { font: inherit; }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .header-icon { font-size: 19px; }
+    .header h1 { margin: 0; font-size: 16px; font-weight: 650; }
+    .status-badge {
+      margin-left: auto;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 600;
+      color: white;
+      background: #007aff;
+    }
+    .status-badge.scanning { background: #f59e0b; }
+    .status-badge.success { background: #34c759; }
+    .status-badge.error { background: #ff3b30; }
+    .image-status.scanning { color: #007aff; }
+    .tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      padding: 4px;
+      margin-bottom: 10px;
+      border-radius: 11px;
+      background: #e7e7eb;
+    }
+    .tab-btn {
+      border: 0;
+      border-radius: 8px;
+      padding: 7px 10px;
+      color: #6e6e73;
+      background: transparent;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .tab-btn.active {
+      color: #1d1d1f;
+      background: white;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    }
+    .tab-count { margin-left: 4px; color: #007aff; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .stats-text, .filter-label, .image-status { font-size: 11px; color: #86868b; }
+    .video-count, .image-count { font-size: 12px; font-weight: 650; }
+    .filter-group { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+    .filter-select, .size-input {
+      border: 1px solid #d2d2d7;
+      border-radius: 6px;
+      padding: 4px 7px;
+      color: #1d1d1f;
+      background: white;
+      outline: none;
+      font-size: 11px;
+    }
+    .filter-select:focus, .size-input:focus { border-color: #007aff; }
+    .notice {
+      margin: -2px 0 10px;
+      padding: 7px 9px;
+      border-radius: 7px;
+      font-size: 11px;
+      line-height: 1.4;
+      color: #1267b5;
+      background: #eaf5ff;
+    }
+    .notice.error { color: #c5221f; background: #fff0ef; }
+    .video-list {
+      max-height: 410px;
+      overflow-y: auto;
+      padding: 6px;
+      border-radius: 14px;
+      background: white;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+    .video-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 9px;
+      margin-bottom: 4px;
+      border-radius: 10px;
+      background: #fafafa;
+    }
+    .video-item:last-child { margin-bottom: 0; }
+    .video-icon {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 11px;
+      color: white;
+      background: linear-gradient(135deg, #ff6b6b, #ee5a24 55%, #f39c12);
+      box-shadow: 0 3px 10px rgba(255, 107, 107, 0.28);
+    }
+    .video-info { flex: 1; min-width: 0; }
+    .video-name-input {
+      width: 100%;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      padding: 2px 4px;
+      outline: none;
+      color: #1d1d1f;
+      background: transparent;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .video-name-input:hover { border-color: #d2d2d7; background: white; }
+    .video-name-input:focus { border-color: #007aff; background: white; }
+    .video-meta { display: flex; gap: 6px; align-items: center; margin-top: 3px; }
+    .video-size { font-size: 10px; color: #86868b; }
+    .video-type {
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: #007aff;
+      background: rgba(0, 122, 255, 0.08);
+      font-size: 9px;
+    }
+    .btn-group { display: flex; flex: 0 0 auto; gap: 5px; }
+    .action-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border: 0;
+      border-radius: 50%;
+      color: white;
+      cursor: pointer;
+    }
+    .action-btn:disabled { cursor: wait; opacity: 0.65; }
+    .download-btn { background: #34c759; }
+    .thunder-btn { background: #1683ff; }
+    .image-tools {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      border-radius: 10px;
+      background: white;
+    }
+    .image-tools .image-status { margin-right: auto; }
+    .refresh-btn {
+      border: 0;
+      border-radius: 6px;
+      padding: 5px 10px;
+      color: #1d1d1f;
+      background: #efeff4;
+      cursor: pointer;
+      font-size: 11px;
+    }
+    .refresh-btn:disabled { cursor: wait; opacity: 0.55; }
+    .size-input { width: 55px; }
+    .filter-checkbox { display: flex; align-items: center; gap: 3px; font-size: 10px; color: #666; }
+    .image-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      max-height: 410px;
+      overflow-y: auto;
+      padding: 7px;
+      border-radius: 14px;
+      background: white;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+    .image-item {
+      position: relative;
+      overflow: hidden;
+      aspect-ratio: 1;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      background: #f5f5f7;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .image-item:hover { border-color: #007aff; transform: scale(1.02); }
+    .image-item.downloading { border-color: #ff9500; }
+    .image-item.downloaded { border-color: #34c759; }
+    .image-thumb { width: 100%; height: 100%; object-fit: cover; }
+    .image-thumb.load-error { opacity: 0; }
+    .download-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      color: white;
+      background: rgba(0, 0, 0, 0.45);
+      transition: opacity 0.2s;
+    }
+    .image-item:hover .download-overlay { opacity: 1; }
+    .download-icon { font-size: 22px; }
+    .image-size-tag {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      padding: 2px 4px;
+      color: white;
+      background: rgba(0, 0, 0, 0.6);
+      text-align: center;
+      font-size: 9px;
+      pointer-events: none;
+    }
+    .image-size-tag.unknown { background: rgba(120, 120, 120, 0.65); }
+    .empty-state { grid-column: 1 / -1; padding: 42px 18px; text-align: center; color: #86868b; }
+    .empty-state-icon { margin-bottom: 10px; font-size: 40px; }
+    .empty-state-title { margin-bottom: 4px; color: #1d1d1f; font-size: 13px; font-weight: 600; }
+    .empty-state-desc { font-size: 11px; }
+    .toast {
+      position: fixed;
+      top: 58px;
+      left: 50%;
+      z-index: 10;
+      padding: 7px 14px;
+      border-radius: 8px;
+      opacity: 0;
+      color: white;
+      background: rgba(0, 0, 0, 0.82);
+      transform: translateX(-50%);
+      transition: opacity 0.2s;
+      pointer-events: none;
+      font-size: 11px;
+    }
+    .toast.show { opacity: 1; }
+    .video-list::-webkit-scrollbar, .image-grid::-webkit-scrollbar { width: 5px; }
+    .video-list::-webkit-scrollbar-thumb, .image-grid::-webkit-scrollbar-thumb { border-radius: 3px; background: #d2d2d7; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="header-icon">📥</span>
+    <h1>网页媒体下载器</h1>
+    <span class="status-badge" id="statusBadge">就绪</span>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab-btn active" data-tab="video" role="tab">🎬 视频 <span class="tab-count" id="videoTabCount">0</span></button>
+    <button class="tab-btn" data-tab="image" role="tab">🖼️ 图片 <span class="tab-count" id="imageTabCount">0</span></button>
+  </div>
+
+  <section class="tab-panel active" id="videoPanel" data-panel="video">
+    <div class="toolbar">
+      <span class="stats-text">当前页面视频</span>
+      <span class="video-count" id="videoCount">0</span>
+      <div class="filter-group">
+        <span class="filter-label">最小显示</span>
+        <select class="filter-select" id="filterSelect">
+          <option value="0">全部</option>
+          <option value="1">1 MB</option>
+          <option value="5">5 MB</option>
+          <option value="10">10 MB</option>
+          <option value="50">50 MB</option>
+        </select>
+      </div>
+    </div>
+    <div class="notice" id="notice" hidden></div>
+    <div class="video-list" id="videoList">
+      <div class="empty-state">
+        <div class="empty-state-icon">🎬</div>
+        <div class="empty-state-title">未检测到视频</div>
+        <div class="empty-state-desc">正在自动检测当前页面视频...</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tab-panel" id="imagePanel" data-panel="image">
+    <div class="image-tools">
+      <span class="image-status" id="imageStatusBadge">就绪</span>
+      <span class="image-count" id="imageCount">0</span>
+      <div class="filter-group">
+        <span class="filter-label">最小</span>
+        <input class="size-input" type="number" id="minSize" placeholder="0" min="0" step="1">
+        <span class="filter-label">KB</span>
+      </div>
+      <label class="filter-checkbox"><input type="checkbox" id="hideUnknown"> 隐藏未知</label>
+      <button class="refresh-btn" id="imageRefreshBtn">刷新</button>
+    </div>
+    <div class="image-grid" id="imageGrid">
+      <div class="empty-state">
+        <div class="empty-state-icon">🖼️</div>
+        <div class="empty-state-title">未检测到图片</div>
+        <div class="empty-state-desc">正在自动检测当前页面图片...</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="toast" id="toast"></div>
+  <script src="popup.js"></script>
+  <script src="image-popup.js"></script>
+</body>
+</html>

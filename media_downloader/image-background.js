@@ -1,3 +1,6 @@
+(() => {
+'use strict';
+
 let detectedImages = [];
 let imageIdCounter = 0;
 let tabTitleCache = {};
@@ -193,7 +196,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.action === 'scanPage') {
+  if (message.action === 'scanImagesPage') {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (!tabs[0]) {
         sendResponse({ success: false, error: '没有活动标签页' });
@@ -275,3 +278,5 @@ chrome.storage.local.get(['images'], (result) => {
     detectedImages = result.images.filter(img => Date.now() - img.timestamp < 3600000);
   }
 });
+
+})();

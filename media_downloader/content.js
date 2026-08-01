@@ -259,8 +259,9 @@
     if (message.action === 'scanVideos') {
       const videos = scanAllVideos();
       sendResponse({ videos: videos });
+      return true;
     }
-    return true;
+    return false;
   });
 
   interceptNetworkRequests();

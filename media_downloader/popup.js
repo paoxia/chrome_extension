@@ -1,6 +1,9 @@
 document.addEventListener('DOMContentLoaded', function() {
+  const tabButtons = document.querySelectorAll('.tab-btn');
+  const tabPanels = document.querySelectorAll('.tab-panel');
   const videoList = document.getElementById('videoList');
   const videoCount = document.getElementById('videoCount');
+  const videoTabCount = document.getElementById('videoTabCount');
   const statusBadge = document.getElementById('statusBadge');
   const filterSelect = document.getElementById('filterSelect');
   const notice = document.getElementById('notice');
@@ -10,6 +13,24 @@ document.addEventListener('DOMContentLoaded', function() {
   let minSizeMB = 0;
   const editedFilenames = new Map();
   let statusTimer = null;
+
+  function activateTab(tabName) {
+    tabButtons.forEach(button => {
+      button.classList.toggle('active', button.dataset.tab === tabName);
+    });
+    tabPanels.forEach(panel => {
+      panel.classList.toggle('active', panel.dataset.panel === tabName);
+    });
+    chrome.storage.local.set({ activeMediaTab: tabName });
+  }
+
+  tabButtons.forEach(button => {
+    button.addEventListener('click', () => activateTab(button.dataset.tab));
+  });
+
+  chrome.storage.local.get(['activeMediaTab'], (result) => {
+    if (result.activeMediaTab === 'image') activateTab('image');
+  });
 
   function escapeHtml(str) {
     if (!str) return '';
@@ -65,6 +86,7 @@ document.addEventListener('DOMContentLoaded', function() {
   function renderVideos(videos) {
     currentVideos = videos;
     videoCount.textContent = videos.length;
+    videoTabCount.textContent = videos.length;
 
     const minBytes = minSizeMB * 1024 * 1024;
     const filteredVideos = minSizeMB > 0
