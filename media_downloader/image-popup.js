@@ -119,6 +119,7 @@ document.addEventListener('DOMContentLoaded', function() {
           filename: img.filename
         }, (response) => {
           item.classList.remove('downloading');
+          const errorMessage = response?.error || chrome.runtime.lastError?.message;
           if (response && response.success) {
             item.classList.add('downloaded');
             showToast('下载已开始');
@@ -126,7 +127,7 @@ document.addEventListener('DOMContentLoaded', function() {
               item.classList.remove('downloaded');
             }, 2000);
           } else {
-            showToast('下载失败');
+            showToast(errorMessage ? `下载失败：${errorMessage}` : '下载失败');
           }
         });
       });
