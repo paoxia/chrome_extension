@@ -45,7 +45,9 @@
   }
 
   function getVideoTitle() {
-    let title = document.title || '';
+    const ogTitle = document.querySelector('meta[property="og:title"]')?.content;
+    const heading = document.querySelector('main h1, article h1, h1')?.textContent;
+    let title = ogTitle || heading || document.title || '';
     title = title.replace(/[-_|·]/g, ' ').trim();
     if (title.length > 50) {
       title = title.substring(0, 50) + '...';

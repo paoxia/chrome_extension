@@ -112,6 +112,8 @@ Bilibili 稍后观看批量管理工具：从关注的 UP 主动态中拉取自�
 - 📊 按文件大小筛选（可配置最小视频大小）
 - ⬇️ 一键下载，支持自定义文件名
 - 📁 支持多种视频格式：MP4、WebM、MKV、AVI、MOV、FLV、WMV、OGG、M3U8
+- ⚡ 支持将视频链接、页面文件名和来源页面信息发送到迅雷下载
+- ✏️ 下载前可直接编辑视频文件名，保留浏览器下载作为备用方式
 - 🧹 页面导航时自动清理旧视频列表
 
 **使用场景：**
@@ -124,6 +126,7 @@ Bilibili 稍后观看批量管理工具：从关注的 UP 主动态中拉取自�
 - 使用 Manifest V3
 - 通过 `webRequest.onCompleted` 和 `webRequest.onBeforeRequest` 双重拦截检测视频请求
 - 使用 `chrome.downloads` API 实现文件下载
+- 通过迅雷客户端本机任务接口创建带自定义文件名的下载任务
 - Content Script 页面扫描作为补充，提高视频检测覆盖率
 - 视频信息临时存储在 `chrome.storage.local`，1小时后自动清理
 

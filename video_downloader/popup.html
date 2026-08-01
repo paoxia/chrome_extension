@@ -37,6 +37,8 @@
       transition: background 0.2s;
     }
     .status-badge.scanning { background: #f59e0b; }
+    .status-badge.success { background: #34c759; }
+    .status-badge.error { background: #ff3b30; }
     .toolbar {
       display: flex;
       align-items: center;
@@ -68,6 +70,16 @@
       transition: border-color 0.2s;
     }
     .filter-select:hover, .filter-select:focus { border-color: #007aff; }
+    .notice {
+      margin: -4px 0 10px;
+      padding: 7px 9px;
+      border-radius: 7px;
+      font-size: 11px;
+      line-height: 1.4;
+      background: #eaf5ff;
+      color: #1267b5;
+    }
+    .notice.error { background: #fff0ef; color: #c5221f; }
     .video-list {
       background: white;
       border-radius: 14px;
@@ -121,15 +133,20 @@
       transform: rotate(30deg);
     }
     .video-info { flex: 1; min-width: 0; }
-    .video-name {
+    .video-name-input {
+      width: 100%;
       font-size: 13px;
       font-weight: 600;
       color: #1d1d1f;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
       letter-spacing: -0.1px;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      background: transparent;
+      padding: 2px 4px;
+      outline: none;
     }
+    .video-name-input:hover { border-color: #d2d2d7; background: white; }
+    .video-name-input:focus { border-color: #007aff; background: white; }
     .video-meta {
       display: flex;
       align-items: center;
@@ -161,6 +178,9 @@
     }
     .download-btn { background: #34c759; }
     .download-btn:hover { background: #30b853; box-shadow: 0 2px 8px rgba(52, 199, 89, 0.3); }
+    .thunder-btn { background: #1683ff; }
+    .thunder-btn:hover { background: #0874e8; box-shadow: 0 2px 8px rgba(22, 131, 255, 0.3); }
+    .action-btn:disabled { cursor: wait; opacity: 0.65; }
     .action-btn:active { transform: scale(0.92); }
     .empty-state {
       text-align: center;
@@ -198,6 +218,8 @@
       </select>
     </div>
   </div>
+
+  <div class="notice" id="notice" hidden></div>
 
   <div class="video-list" id="videoList">
     <div class="empty-state">

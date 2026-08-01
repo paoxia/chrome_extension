@@ -3,10 +3,13 @@ document.addEventListener('DOMContentLoaded', function() {
   const videoCount = document.getElementById('videoCount');
   const statusBadge = document.getElementById('statusBadge');
   const filterSelect = document.getElementById('filterSelect');
+  const notice = document.getElementById('notice');
 
   let currentVideos = [];
   let isScanning = false;
   let minSizeMB = 0;
+  const editedFilenames = new Map();
+  let statusTimer = null;
 
   function escapeHtml(str) {
     if (!str) return '';
@@ -22,6 +25,41 @@ document.addEventListener('DOMContentLoaded', function() {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function showStatus(text, type = '') {
+    if (statusTimer) clearTimeout(statusTimer);
+    statusBadge.textContent = type === 'error' ? '失败' : text;
+    statusBadge.classList.remove('scanning', 'success', 'error');
+    if (type) statusBadge.classList.add(type);
+    notice.textContent = text;
+    notice.classList.toggle('error', type === 'error');
+    notice.hidden = false;
+    statusTimer = setTimeout(() => {
+      statusBadge.textContent = '就绪';
+      statusBadge.classList.remove('scanning', 'success', 'error');
+      notice.hidden = true;
+    }, 3000);
+  }
+
+  function runDownload(button, message, idleIcon, successText) {
+    button.disabled = true;
+    button.textContent = '⏳';
+
+    chrome.runtime.sendMessage(message, (response) => {
+      button.disabled = false;
+      if (chrome.runtime.lastError || !response?.success) {
+        button.textContent = '✗';
+        showStatus(response?.error || chrome.runtime.lastError?.message || '下载失败', 'error');
+      } else {
+        button.textContent = '✓';
+        showStatus(successText, 'success');
+      }
+
+      setTimeout(() => {
+        button.textContent = idleIcon;
+      }, 2000);
+    });
   }
 
   function renderVideos(videos) {
@@ -52,7 +90,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     videoList.innerHTML = '';
     sortedVideos.forEach(video => {
-      const escapedFilename = escapeHtml(video.filename || video.title);
+      const filename = editedFilenames.get(video.url) || video.filename || video.title;
+      const escapedFilename = escapeHtml(filename);
       const escapedType = video.mimeType ? escapeHtml(video.mimeType.split('/')[1].toUpperCase()) : 'Video';
       
       const item = document.createElement('div');
@@ -64,40 +103,43 @@ document.addEventListener('DOMContentLoaded', function() {
           </svg>
         </div>
         <div class="video-info">
-          <div class="video-name" title="${escapedFilename}">${escapedFilename}</div>
+          <input class="video-name-input" title="可编辑下载文件名" value="${escapedFilename}">
           <div class="video-meta">
             <span class="video-size">${formatSize(video.size)}</span>
             <span class="video-type">${escapedType}</span>
           </div>
         </div>
         <div class="btn-group">
-          <button class="action-btn download-btn" title="下载">⬇️</button>
+          <button class="action-btn download-btn" title="浏览器下载">⬇️</button>
+          <button class="action-btn thunder-btn" title="迅雷下载">⚡</button>
         </div>
       `;
 
+      const filenameInput = item.querySelector('.video-name-input');
       const downloadBtn = item.querySelector('.download-btn');
-      downloadBtn.videoData = { url: video.url, filename: video.filename || video.title };
+      const thunderBtn = item.querySelector('.thunder-btn');
+
+      filenameInput.addEventListener('input', function() {
+        editedFilenames.set(video.url, this.value);
+      });
+
       downloadBtn.addEventListener('click', function() {
-        const { url, filename } = this.videoData;
-        this.innerHTML = '⏳';
-        
-        chrome.runtime.sendMessage({
+        runDownload(this, {
           action: 'downloadVideo',
-          url: url,
-          filename: filename
-        }, (response) => {
-          if (response && response.success) {
-            this.innerHTML = '✓';
-            setTimeout(() => {
-              this.innerHTML = '⬇️';
-            }, 2000);
-          } else {
-            this.innerHTML = '✗';
-            setTimeout(() => {
-              this.innerHTML = '⬇️';
-            }, 2000);
-          }
-        });
+          url: video.url,
+          filename: filenameInput.value
+        }, '⬇️', '已开始下载');
+      });
+
+      thunderBtn.addEventListener('click', function() {
+        runDownload(this, {
+          action: 'downloadVideoWithThunder',
+          url: video.url,
+          filename: filenameInput.value,
+          size: video.size,
+          referer: video.pageUrl,
+          userAgent: navigator.userAgent
+        }, '⚡', '已发送到迅雷');
       });
       
       videoList.appendChild(item);
@@ -112,7 +154,10 @@ document.addEventListener('DOMContentLoaded', function() {
           tabId: tabs[0].id
         }, (response) => {
           if (response && response.videos) {
-            renderVideos(response.videos);
+            renderVideos(response.videos.map(video => ({
+              ...video,
+              pageUrl: video.pageUrl || tabs[0].url || ''
+            })));
           }
         });
       }
