@@ -1,173 +1,122 @@
-# 网页内容总结器 Chrome 扩展
+# Web Reader
 
-一个 Chrome 浏览器扩展，可以读取当前网页内容并使用本地 Ollama 进行智能总结。
+一个基于 Chrome Manifest V3 的 AI 网页阅读助手。它可以总结当前页面，也可以把译文直接嵌入网页，并在原文、双语、译文三种显示状态之间切换。
 
-## 功能特性
+## 功能
 
-- 📖 自动提取网页主要内容
-- 🤖 使用本地 Ollama 模型进行智能总结
-- 🌐 支持所有网页（除 Chrome 内置页面）
-- 🔍 自动检测并选择可用的 Ollama 模型
-- ✅ 连接测试功能，方便排查问题
+- 提取当前页面的主要文本并生成摘要
+- 将标题、段落、列表项等正文块翻译后直接展示在原位置
+- 支持原文、双语、译文三种显示模式，随时切换或移除译文
+- 支持 OpenAI 兼容的 Chat Completions API
+- 支持通过 Chrome Native Messaging 自动调用本机 Codex CLI，无需常驻服务
+- 摘要和翻译在后台执行，关闭扩展弹窗后任务仍可继续
+- 配置保存在 `chrome.storage.local`
 
-## 安装步骤
+## 安装
 
-### 1. 安装 Ollama
+1. 打开 `chrome://extensions/`。
+2. 开启“开发者模式”。
+3. 点击“加载已解压的扩展程序”。
+4. 选择仓库中的 `web_reader` 目录。
 
-首先确保你已经安装并运行了 Ollama：
+修改代码后，需要在扩展管理页重新加载扩展，并刷新已经打开的目标网页。
 
-- 访问 [Ollama 官网](https://ollama.ai/) 下载并安装
-- 启动 Ollama 服务（默认运行在 `http://localhost:11434`）
+## 连接本地 Codex（推荐）
 
-### 2. 下载并安装模型
+Native Messaging 模式不需要手动启动后台服务。首次使用只需安装一次本地 Host：
 
-在终端中运行以下命令下载模型（选择一个或多个）：
+1. 确认终端中运行 `codex --version` 和 `codex login status` 均正常。
+2. 在 `chrome://extensions/` 打开 Web Reader 的详情，复制由 32 个字母组成的“扩展程序 ID”。
+3. 根据系统安装 Native Host。
 
-```bash
-# 推荐的中文模型
-ollama pull qwen2.5:8b
-# 或
-ollama pull llama3.2:3b
-# 或
-ollama pull mistral:7b
-```
+### Windows
 
-### 3. 配置 Ollama 允许跨域请求
-
-**重要：** 必须设置 `OLLAMA_ORIGINS` 环境变量，允许 Chrome 扩展访问 Ollama API。
-
-#### Windows 系统
-
-**方法一：通过系统环境变量设置（推荐）**
-
-1. 右键点击"此电脑" → "属性"
-2. 点击"高级系统设置"
-3. 点击"环境变量"
-4. 在"系统变量"中点击"新建"
-5. 变量名：`OLLAMA_ORIGINS`
-6. 变量值：`chrome-extension://*`
-7. 点击"确定"保存
-8. **重启 Ollama 服务**（重要！）
-
-**方法二：通过命令行设置（临时）**
-
-在启动 Ollama 之前，在 PowerShell 或 CMD 中运行：
+在 PowerShell 中进入 `web_reader` 目录并运行：
 
 ```powershell
-$env:OLLAMA_ORIGINS="chrome-extension://*"
-ollama serve
+powershell -ExecutionPolicy Bypass -File .\native_host\install-host.ps1 -ExtensionId 你的扩展ID
 ```
 
-#### macOS / Linux 系统
+安装程序会在当前用户的 `%LOCALAPPDATA%\WebReaderCodexHost` 下编译本地 Host，并在 `HKCU` 注册 Chrome Native Messaging Host；不需要管理员权限。它会记录当前 `codex.cmd` 的位置，并且只允许指定的扩展 ID 调用。
 
-在终端中运行：
+Windows 卸载方式：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\native_host\uninstall-host.ps1
+```
+
+### macOS / Linux
+
+除了 Codex CLI，还需要 `node` 18 或更高版本。在终端中进入 `web_reader` 目录并运行：
 
 ```bash
-export OLLAMA_ORIGINS="chrome-extension://*"
-ollama serve
+chmod +x ./native_host/install-host.sh ./native_host/uninstall-host.sh
+./native_host/install-host.sh 你的扩展ID chrome
 ```
 
-或者将环境变量添加到 `~/.bashrc` 或 `~/.zshrc` 文件中：
+第二个参数支持 `chrome`、`chromium`、`edge`、`brave` 或 `all`，省略时默认为 Chrome。脚本会把 Host 安装到当前用户目录，并将 Native Messaging manifest 注册到对应浏览器的用户配置目录，不需要 `sudo`。
+
+macOS/Linux 卸载方式：
 
 ```bash
-echo 'export OLLAMA_ORIGINS="chrome-extension://*"' >> ~/.bashrc
-source ~/.bashrc
+./native_host/uninstall-host.sh
 ```
 
-然后重启 Ollama 服务。
+4. 回到 `chrome://extensions/`，重新加载 Web Reader。
+5. 打开扩展，将“AI 服务”切换为“本地 Codex（Native，推荐）”，点击“测试连接”。
 
-#### 验证配置
+如果扩展目录移动后扩展 ID 发生变化，重新运行对应安装命令并传入新的 ID 即可。
 
-设置完成后，重启 Ollama 服务，然后可以通过以下方式验证：
+Native 模式每次任务由 Chrome 自动启动 Host，Host 再以只读、临时会话运行 `codex exec`。没有监听端口，也不需要保持终端窗口。
 
-1. 在浏览器中访问 `http://localhost:11434/api/tags`，应该能看到模型列表
-2. 使用扩展的"测试Ollama连接"功能，应该能成功连接
+## 使用 OpenAI 兼容接口
 
-### 4. 安装 Chrome 扩展
+将“AI 服务”切换为“OpenAI 兼容接口”，填写：
 
-1. 打开 Chrome 浏览器
-2. 访问 `chrome://extensions/`
-3. 开启右上角的"开发者模式"
-4. 点击"加载已解压的扩展程序"
-5. 选择本项目的文件夹
-6. 扩展安装完成
+- API 地址，例如 `https://api.openai.com/v1`
+- API Key；不需要鉴权的本地兼容服务可以留空
+- 模型名称
 
-## 使用方法
+扩展会使用 `/models` 测试连接，使用 `/chat/completions` 完成摘要和翻译。
 
-1. **测试连接**（首次使用建议先测试）
-   - 点击浏览器工具栏中的扩展图标
-   - 点击"测试Ollama连接"按钮
-   - 确认能看到可用模型列表
+## 页面翻译
 
-2. **总结网页内容**
-   - 打开任意网页
-   - 点击扩展图标
-   - 点击"总结当前网页"按钮
-   - 等待几秒钟，总结结果会显示在弹窗中
+1. 选择目标语言和默认展示方式。
+2. 打开需要翻译的网页，点击“翻译当前页面”。
+3. 翻译完成后，网页右下角会出现控制条。
+4. 可在“原文”“双语”“译文”之间切换；点击关闭按钮或弹窗中的“移除译文”可恢复页面。
 
-## 常见问题
+翻译不会覆盖服务器内容。扩展仅在当前页面 DOM 中包裹原文并插入译文；刷新页面或移除译文即可恢复。
 
-### Q: 测试连接时显示 403 错误
+## 注意事项
 
-**A:** 这通常是因为没有设置 `OLLAMA_ORIGINS` 环境变量。请按照上面的"配置 Ollama 允许跨域请求"步骤进行配置，并确保重启了 Ollama 服务。
+- Chrome 内置页、扩展商店等受保护页面不允许内容脚本运行。
+- 动态加载的新段落不会自动翻译，需要重新执行页面翻译。
+- 页面文本会发送给所选 AI 服务。Native Host 在本机调用 Codex CLI，但 Codex 仍会使用账户所配置的模型服务，因此“本地调用”不等于离线推理。
+- 网页内容会被当作不可信输入；Codex 会在只读、禁用网络和无需审批的任务上下文中运行，且提示词要求它不要执行网页中的命令。
+- 极复杂页面的原有排版可能因双语内容增加而发生轻微变化，移除译文即可还原。
 
-### Q: 总结时显示"模型不存在"错误
+## 项目结构
 
-**A:** 
-1. 使用"测试Ollama连接"功能查看可用的模型列表
-2. 确保至少下载了一个模型
-3. 如果模型名称不正确，扩展会自动选择第一个可用模型
-
-### Q: 显示"消息通道已关闭"错误
-
-**A:**
-1. 在 `chrome://extensions/` 页面重新加载扩展
-2. 检查 Service Worker 是否正常运行
-3. 打开 Service Worker 控制台查看详细错误信息
-
-### Q: 无法连接到 Ollama 服务
-
-**A:**
-1. 确认 Ollama 服务正在运行（访问 `http://localhost:11434` 测试）
-2. 检查防火墙是否阻止了连接
-3. 确认 Ollama 运行在默认端口 11434
-
-### Q: 总结结果不理想
-
-**A:**
-1. 尝试使用更大的模型（如 7B 或 8B 参数）
-2. 确保网页内容已完全加载
-3. 某些网页可能包含大量广告或无关内容，影响总结质量
-
-## 技术说明
-
-- **Manifest Version:** 3
-- **Ollama API:** `http://localhost:11434/api/generate`
-- **支持的模型:** 所有 Ollama 支持的模型（自动检测）
-
-## 开发说明
-
-### 项目结构
-
-```
+```text
 web_reader/
-├── manifest.json      # 扩展配置文件
-├── background.js      # Service Worker，处理与 Ollama 的通信
-├── content.js         # Content Script，提取网页内容
-├── popup.html         # 扩展弹窗界面
-├── popup.js           # 弹窗逻辑
-└── README.md          # 本文件
+├── manifest.json
+├── background.js       # AI 服务连接、后台任务与结果管理
+├── content.js          # 正文提取、译文插入与显示模式切换
+├── content.css         # 页面内译文和控制条样式
+├── popup.html
+├── popup.js
+├── native_host/
+│   ├── WebReaderCodexHost.cs # Native Messaging Host 源码
+│   ├── native-host.js        # macOS/Linux Native Host
+│   ├── install-host.ps1      # Windows 当前用户安装脚本
+│   ├── uninstall-host.ps1    # Windows 卸载脚本
+│   ├── install-host.sh       # macOS/Linux 当前用户安装脚本
+│   └── uninstall-host.sh     # macOS/Linux 卸载脚本
+├── icon.png
+└── README.md
 ```
 
-### 修改模型选择逻辑
-
-如果需要修改模型选择逻辑，编辑 `background.js` 中的 `getAvailableModel()` 函数。
-
-## 许可证
+## 许可
 
 MIT License
-
-## 贡献
-
-欢迎提交 Issue 和 Pull Request！
-

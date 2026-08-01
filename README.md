@@ -29,18 +29,21 @@
 
 ### 2. AI 阅读器 (web_reader)
 
-一个智能的网页内容总结工具，使用 OpenAI 兼容的 API 对网页内容进行智能总结，帮助您快速了解文章要点。
+一个支持网页总结和页面内翻译的 AI 阅读助手，可使用 OpenAI 兼容 API，也可通过 Native Messaging 调用本机 Codex CLI。
 
 **主要功能：**
-- 📖 自动提取网页主要内容
+- 📖 自动提取网页主要内容并生成摘要
+- 🌏 将译文直接嵌入网页，支持原文、双语、译文三种状态切换
 - 🤖 支持 OpenAI 风格的 API（OpenAI、Azure、第三方代理等）
+- 💻 支持 Windows、macOS、Linux 上通过 Chrome Native Messaging 自动调用本地 Codex CLI，无需常驻服务
 - 🌐 支持所有网页（除 Chrome 内置页面）
-- ⚙️ 可配置 API 地址、密钥和模型
+- ⚙️ 可配置 AI 服务、模型、目标语言和默认翻译模式
 - 🔄 后台处理，关闭弹窗也能继续运行
 - ✅ 连接测试功能，方便排查问题
 
 **使用场景：**
 - 快速了解长篇文章的核心内容
+- 双语阅读外文文章或切换为纯译文阅读
 - 阅读新闻时快速获取要点
 - 研究资料时提取关键信息
 - 节省阅读时间，提高信息获取效率
@@ -48,6 +51,8 @@
 **技术特点：**
 - 使用 Manifest V3
 - 支持 OpenAI 兼容的 API 接口
+- 支持一次安装、按需启动的 Codex Native Messaging Host
+- 页面译文以 DOM 增强方式展示，可随时移除并恢复原文
 - 配置信息本地存储，保护隐私
 
 ---
@@ -164,8 +169,10 @@ chrome_extension/
 │
 ├── web_reader/              # AI 阅读器
 │   ├── manifest.json        # 扩展配置文件
-│   ├── background.js        # Service Worker
-│   ├── content.js           # Content Script
+  │   ├── background.js        # Service Worker
+  │   ├── content.js           # Content Script
+  │   ├── content.css          # 页面内翻译样式和模式控制条
+  │   ├── native_host/         # 本地 Codex Native Messaging Host 与安装脚本
 │   ├── popup.html           # 弹窗界面
 │   ├── popup.js             # 弹窗逻辑
 │   ├── README.md            # 子模块说明

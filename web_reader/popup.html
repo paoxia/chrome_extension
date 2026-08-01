@@ -1,315 +1,171 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <title>AI 阅读器</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
+    * { box-sizing: border-box; }
     body {
-      width: 360px;
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
-      background: #f5f5f7;
-      color: #1d1d1f;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-    }
-    
-    .container {
-      padding: 24px 20px;
-    }
-    
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 24px;
-    }
-    
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    
-    .logo-icon {
-      width: 40px;
-      height: 40px;
-      background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 22px;
-      box-shadow: 0 2px 8px rgba(0, 122, 255, 0.25);
-    }
-    
-    h1 {
-      font-size: 20px;
-      font-weight: 600;
-      letter-spacing: -0.3px;
-      color: #1d1d1f;
-    }
-    
-    .config-btn {
-      background: transparent;
-      color: #007AFF;
-      font-size: 13px;
-      font-weight: 500;
-      padding: 6px 12px;
-      width: auto;
+      width: 390px;
       margin: 0;
-      border: none;
-      border-radius: 6px;
-      transition: background 0.2s ease;
-    }
-    
-    .config-btn:hover {
-      background: rgba(0, 122, 255, 0.1);
-    }
-    
-    .config-btn.active {
-      background: #007AFF;
-      color: #fff;
-    }
-    
-    .config-section {
-      background: #fff;
-      padding: 20px;
-      border-radius: 12px;
-      margin-bottom: 16px;
-      display: none;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-    }
-    
-    .config-section.show {
-      display: block;
-      animation: fadeIn 0.25s ease;
-    }
-    
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-8px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .config-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: #86868b;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 16px;
-    }
-    
-    .form-group {
-      margin-bottom: 16px;
-    }
-    
-    .form-group:last-of-type {
-      margin-bottom: 0;
-    }
-    
-    .form-group label {
-      display: block;
-      font-size: 13px;
       color: #1d1d1f;
-      font-weight: 500;
-      margin-bottom: 6px;
-    }
-    
-    .form-group input {
-      width: 100%;
-      padding: 10px 12px;
       background: #f5f5f7;
-      border: 1px solid transparent;
-      border-radius: 8px;
-      font-size: 15px;
-      color: #1d1d1f;
-      transition: all 0.2s ease;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
-    
-    .form-group input::placeholder {
-      color: #86868b;
+    button, input, select { font: inherit; }
+    .container { padding: 16px; }
+    .header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .logo-icon {
+      display: flex; align-items: center; justify-content: center;
+      width: 38px; height: 38px; border-radius: 10px; color: white;
+      background: linear-gradient(135deg, #007aff, #5856d6);
+      box-shadow: 0 3px 10px rgba(0, 122, 255, 0.25);
     }
-    
-    .form-group input:focus {
-      outline: none;
-      background: #fff;
-      border-color: #007AFF;
-      box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+    h1 { margin: 0; font-size: 17px; font-weight: 650; }
+    .provider-badge { color: #86868b; font-size: 10px; }
+    .config-btn {
+      width: auto; margin-left: auto; padding: 6px 10px; border: 0; border-radius: 7px;
+      color: #007aff; background: transparent; cursor: pointer; font-size: 12px;
     }
-    
-    .hint {
-      font-size: 12px;
-      color: #86868b;
-      margin-top: 4px;
+    .config-btn:hover, .config-btn.active { color: white; background: #007aff; }
+    .card {
+      margin-bottom: 10px; padding: 13px; border: 1px solid #ebeef2;
+      border-radius: 12px; background: white; box-shadow: 0 2px 8px rgba(0,0,0,.05);
     }
-    
-    .btn-group {
-      display: flex;
-      gap: 8px;
-      margin-top: 20px;
+    .config-section { display: none; }
+    .config-section.show { display: block; }
+    .config-title { margin-bottom: 11px; color: #6e6e73; font-size: 11px; font-weight: 650; }
+    .form-group { margin-bottom: 10px; }
+    .form-group label { display: block; margin-bottom: 4px; font-size: 11px; font-weight: 600; }
+    .form-group input, .form-group select {
+      width: 100%; padding: 8px 9px; border: 1px solid #d2d2d7; border-radius: 7px;
+      color: #1d1d1f; background: #fafafa; outline: none; font-size: 12px;
     }
-    
-    .btn-group button {
-      flex: 1;
+    .form-group input:focus, .form-group select:focus { border-color: #007aff; background: white; }
+    .hint { margin-top: 4px; color: #86868b; font-size: 10px; line-height: 1.4; }
+    .codex-command {
+      padding: 7px; border-radius: 6px; color: #3a3a3c; background: #f2f2f7;
+      font-family: Consolas, monospace; font-size: 9px; word-break: break-all;
     }
-    
-    button {
-      width: 100%;
-      padding: 12px 20px;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 15px;
-      font-weight: 500;
-      transition: all 0.2s ease;
+    .provider-fields[hidden] { display: none; }
+    .button-row { display: flex; gap: 7px; }
+    button.action {
+      flex: 1; padding: 10px 9px; border: 0; border-radius: 9px; color: white;
+      cursor: pointer; font-size: 12px; font-weight: 600;
     }
-    
-    .primary-btn {
-      background: #007AFF;
-      color: #fff;
+    button:disabled { cursor: wait !important; opacity: .55; }
+    .summary-btn { background: #5856d6; }
+    .translate-btn { background: #007aff; }
+    .save-btn { color: white !important; background: #34c759 !important; }
+    .test-btn { color: #1d1d1f !important; background: #efeff4 !important; }
+    .mode-controls { display: flex; align-items: center; gap: 5px; }
+    .mode-controls[hidden] { display: none; }
+    .mode-label { margin-right: auto; color: #6e6e73; font-size: 10px; }
+    .mode-btn, .clear-btn {
+      width: auto; padding: 6px 8px; border: 0; border-radius: 7px;
+      color: #3a3a3c; background: #efeff4; cursor: pointer; font-size: 10px;
     }
-    
-    .primary-btn:hover {
-      background: #0066d6;
-    }
-    
-    .primary-btn:active {
-      transform: scale(0.98);
-    }
-    
-    .secondary-btn {
-      background: #f5f5f7;
-      color: #007AFF;
-    }
-    
-    .secondary-btn:hover {
-      background: #e8e8ed;
-    }
-    
-    .save-btn {
-      background: #34C759;
-      color: #fff;
-    }
-    
-    .save-btn:hover {
-      background: #2db84e;
-    }
-    
-    .test-btn {
-      background: #f5f5f7;
-      color: #1d1d1f;
-    }
-    
-    .test-btn:hover {
-      background: #e8e8ed;
-    }
-    
-    button:disabled {
-      background: #d1d1d6;
-      color: #86868b;
-      cursor: not-allowed;
-      transform: none;
-    }
-    
-    #status {
-      margin-top: 16px;
-      font-size: 14px;
-      color: #86868b;
-      text-align: center;
-      min-height: 20px;
-    }
-    
-    .error {
-      color: #FF3B30;
-    }
-    
-    .success {
-      color: #34C759;
-    }
-    
+    .mode-btn.active { color: white; background: #007aff; }
+    .clear-btn { color: #ff3b30; background: #fff0ef; }
+    #status { min-height: 18px; padding: 1px 3px 8px; color: #86868b; font-size: 11px; text-align: center; }
+    #status.success { color: #248a3d; }
+    #status.error { color: #ff3b30; }
     #result {
-      margin-top: 16px;
-      padding: 16px;
-      background: #fff;
-      border-radius: 12px;
-      max-height: 240px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      font-size: 14px;
-      line-height: 1.6;
-      color: #1d1d1f;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      display: none; max-height: 250px; overflow-y: auto; margin-top: 10px; padding: 12px;
+      border-radius: 10px; color: #2c2c2e; background: white; box-shadow: 0 1px 5px rgba(0,0,0,.06);
+      white-space: pre-wrap; font-size: 12px; line-height: 1.6;
     }
-    
-    #result::-webkit-scrollbar {
-      width: 6px;
-    }
-    
-    #result::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    
-    #result::-webkit-scrollbar-thumb {
-      background: #d1d1d6;
-      border-radius: 3px;
-    }
-    
-    .divider {
-      height: 1px;
-      background: #e5e5ea;
-      margin: 16px 0;
-    }
-    
-    .section-card {
-      background: #fff;
-      border-radius: 12px;
-      padding: 16px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-    }
+    #result.show { display: block; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <div class="logo">
-        <div class="logo-icon">🤖</div>
+      <div class="logo-icon">📖</div>
+      <div>
         <h1>AI 阅读器</h1>
+        <div class="provider-badge" id="providerBadge">OpenAI 兼容 API</div>
       </div>
       <button id="configBtn" class="config-btn">配置</button>
     </div>
-    
-    <div class="config-section" id="configSection">
-      <div class="config-title">API 配置</div>
+
+    <section class="card config-section" id="configSection">
+      <div class="config-title">AI 服务配置</div>
       <div class="form-group">
-        <label for="apiUrl">API 地址</label>
-        <input type="text" id="apiUrl" placeholder="https://api.openai.com/v1">
-        <div class="hint">OpenAI 风格的 API 基础地址</div>
+        <label for="provider">服务类型</label>
+        <select id="provider">
+          <option value="openai">OpenAI 兼容 API</option>
+          <option value="codex-native">本地 Codex（Native，推荐）</option>
+        </select>
+      </div>
+
+      <div class="provider-fields" id="openaiFields">
+        <div class="form-group">
+          <label for="apiUrl">API 地址</label>
+          <input id="apiUrl" type="text" placeholder="https://api.openai.com/v1">
+        </div>
+        <div class="form-group">
+          <label for="apiKey">API Key（可选）</label>
+          <input id="apiKey" type="password" placeholder="本地兼容服务可留空">
+        </div>
+        <div class="form-group">
+          <label for="modelName">模型名称</label>
+          <input id="modelName" type="text" placeholder="填写兼容 API 支持的模型">
+        </div>
+      </div>
+
+      <div class="provider-fields" id="nativeCodexFields" hidden>
+        <div class="hint">无需启动后台服务。首次使用需安装一次 Native Host，之后由 Chrome 自动调用本地 Codex CLI。</div>
+        <div class="codex-command">首次安装请查看 web_reader/README.md</div>
+      </div>
+
+      <div class="provider-fields" id="codexSharedFields" hidden>
+        <div class="form-group">
+          <label for="codexModel">Codex 模型（可选）</label>
+          <input id="codexModel" type="text" placeholder="留空使用 Codex 默认模型">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="targetLanguage">翻译目标语言</label>
+        <select id="targetLanguage">
+          <option value="简体中文">简体中文</option>
+          <option value="繁体中文">繁体中文</option>
+          <option value="English">English</option>
+          <option value="日本語">日本語</option>
+          <option value="한국어">한국어</option>
+          <option value="Español">Español</option>
+        </select>
       </div>
       <div class="form-group">
-        <label for="apiKey">API Key</label>
-        <input type="password" id="apiKey" placeholder="输入你的 API Key">
+        <label for="translationMode">翻译后默认显示</label>
+        <select id="translationMode">
+          <option value="bilingual">双语对照</option>
+          <option value="translated">仅译文</option>
+          <option value="original">保留原文</option>
+        </select>
       </div>
-      <div class="form-group">
-        <label for="modelName">模型名称</label>
-        <input type="text" id="modelName" placeholder="gpt-3.5-turbo, gpt-4">
-        <div class="hint">支持 OpenAI 兼容的模型名称</div>
+      <div class="button-row">
+        <button id="saveBtn" class="action save-btn">保存</button>
+        <button id="testBtn" class="action test-btn">测试连接</button>
       </div>
-      <div class="btn-group">
-        <button id="saveBtn" class="save-btn">保存</button>
-        <button id="testBtn" class="test-btn">测试连接</button>
+    </section>
+
+    <section class="card">
+      <div class="button-row">
+        <button id="summarizeBtn" class="action summary-btn">总结当前网页</button>
+        <button id="translateBtn" class="action translate-btn">翻译当前网页</button>
       </div>
-    </div>
-    
-    <div class="section-card">
-      <button id="summarizeBtn" class="primary-btn">总结当前网页</button>
-    </div>
-    
+    </section>
+
+    <section class="card mode-controls" id="translationControls" hidden>
+      <span class="mode-label">页面显示</span>
+      <button class="mode-btn" data-mode="original">原文</button>
+      <button class="mode-btn" data-mode="bilingual">双语</button>
+      <button class="mode-btn" data-mode="translated">译文</button>
+      <button class="clear-btn" id="clearTranslationBtn">移除</button>
+    </section>
+
     <div id="status"></div>
     <div id="result"></div>
   </div>

@@ -1,0 +1,89 @@
+#web-reader-translation-toolbar {
+  all: initial !important;
+  position: fixed !important;
+  right: 18px !important;
+  bottom: 18px !important;
+  z-index: 2147483647 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 7px !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  border-radius: 12px !important;
+  color: #1d1d1f !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18) !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  font-size: 12px !important;
+  line-height: 1 !important;
+  backdrop-filter: blur(16px) !important;
+}
+
+#web-reader-translation-toolbar .web-reader-toolbar-label {
+  all: initial !important;
+  padding: 0 6px !important;
+  color: #6e6e73 !important;
+  font-family: inherit !important;
+  font-size: 11px !important;
+  white-space: nowrap !important;
+}
+
+#web-reader-translation-toolbar button {
+  all: initial !important;
+  padding: 6px 8px !important;
+  border-radius: 7px !important;
+  color: #3a3a3c !important;
+  background: #f2f2f7 !important;
+  cursor: pointer !important;
+  font-family: inherit !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
+}
+
+#web-reader-translation-toolbar button:hover,
+#web-reader-translation-toolbar button.active {
+  color: #fff !important;
+  background: #007aff !important;
+}
+
+#web-reader-translation-toolbar .web-reader-toolbar-close {
+  padding-right: 7px !important;
+  padding-left: 7px !important;
+  color: #8e8e93 !important;
+  background: transparent !important;
+  font-size: 16px !important;
+}
+
+.web-reader-original-content {
+  display: inline !important;
+}
+
+.web-reader-translated-content {
+  display: block !important;
+  margin-top: 0.45em !important;
+  padding: 0.5em 0.7em !important;
+  border-left: 3px solid #007aff !important;
+  border-radius: 4px !important;
+  color: inherit !important;
+  background: rgba(0, 122, 255, 0.07) !important;
+  font: inherit !important;
+  line-height: 1.55 !important;
+  text-align: start !important;
+  white-space: pre-wrap !important;
+}
+
+[data-web-reader-translation-mode="original"] > .web-reader-original-content {
+  display: inline !important;
+}
+
+[data-web-reader-translation-mode="original"] > .web-reader-translated-content {
+  display: none !important;
+}
+
+[data-web-reader-translation-mode="translated"] > .web-reader-original-content {
+  display: none !important;
+}
+
+[data-web-reader-translation-mode="translated"] > .web-reader-translated-content {
+  margin-top: 0 !important;
+}
