@@ -141,6 +141,29 @@ Bilibili 稍后观看批量管理工具：从关注的 UP 主动态中拉取自�
 
 ---
 
+### 6. 喝水提醒 (water_reminder)
+
+设置每日饮水目标和提醒时段，每半小时通过系统通知提醒本次应该喝多少水。
+
+**主要功能：**
+- 💧 自定义每日总饮水量（ml）、开始时间和结束时间
+- 🔔 每 30 分钟提醒，自动均分总量，末次对齐结束时间
+- 🌙 支持跨午夜时段，每天重复提醒
+- 💤 可设置多段不喝水的休息时间，自动跳过并重新分配目标总量
+- 💦 可选网页水滴动画，显示本次饮水量，支持手动关闭或自动消失
+- 📋 预览完整计划、下一次提醒时间及本次应喝水量
+- ⏸ 暂停 / 恢复提醒，提供测试通知
+- 💾 本地保存设置，关闭弹窗继续运行，浏览器重启后恢复计划
+
+**技术特点：**
+- 使用 Manifest V3 与 `chrome.alarms`、`chrome.notifications`
+- 网页访问权限按需授权，用于显示动画；无需读取网页内容或联网
+- 休眠后跳过较早的遗漏提醒，不集中补发
+
+安装和分配规则详见 [喝水提醒说明](water_reminder/README.md)。
+
+---
+
 ## 🚀 快速开始
 
 ### 安装扩展
@@ -209,6 +232,19 @@ chrome_extension/
 │   ├── popup.js             # 视频界面及标签切换逻辑
 │   ├── image-popup.js       # 图片过滤和缩略图逻辑
 │   └── icon.png             # 扩展图标
+│
+├── water_reminder/         # 喝水提醒
+│   ├── manifest.json        # 扩展配置文件
+│   ├── background.js        # Service Worker 事件入口
+│   ├── controller.mjs       # 后台调度、恢复与通知
+│   ├── schedule.mjs         # 时间与饮水量分配
+│   ├── animation.mjs        # 网页水滴动画与按需注入
+│   ├── popup.html           # 弹窗界面
+│   ├── popup.js             # 设置和计划预览
+│   ├── style.css            # 样式文件
+│   ├── icons/               # 水滴图标
+│   ├── tests/               # Node.js 自动测试
+│   └── README.md            # 安装与使用说明
 │
 ├── .gitignore               # Git 忽略配置（含 _metadata/）
 ├── LICENSE                  # 许可证文件
