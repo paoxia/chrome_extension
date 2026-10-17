@@ -2,6 +2,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   totalMl: 2000, startTime: '09:00', endTime: '18:00', enabled: true, restPeriods: Object.freeze([]), animationEnabled: false
 });
 export const INTERVAL_MINUTES = 30;
+export const RETRY_MINUTES = 5;
 
 export function timeMinutes(value) {
   if (typeof value !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) {
@@ -96,4 +97,72 @@ export function nextReminder(settings, now = new Date()) {
     candidates.push(...scheduleForDate(settings, date));
   }
   return candidates.filter(slot => slot.at > now.getTime()).sort((a, b) => a.at - b.at)[0] ?? null;
+}
+
+function cycleOnDate(settings, date) {
+  const startMinutes = timeMinutes(settings.startTime);
+  const duration = (timeMinutes(settings.endTime) - startMinutes + 1440) % 1440;
+  const start = new Date(date);
+  start.setHours(0, startMinutes, 0, 0);
+  const end = new Date(date);
+  end.setHours(0, startMinutes + duration, 0, 0);
+  const key = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+  return {key, startAt: start.getTime(), endAt: end.getTime()};
+}
+
+// A drinking day rolls over at the next start time, including overnight plans.
+export function currentCycle(settings, now = new Date()) {
+  const cycle = cycleOnDate(settings, now);
+  if (cycle.startAt <= now.getTime()) return cycle;
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  return cycleOnDate(settings, yesterday);
+}
+
+export function followingCycle(settings, cycle) {
+  const tomorrow = new Date(cycle.startAt);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return cycleOnDate(settings, tomorrow);
+}
+
+export function clockLabel(timestamp) {
+  const date = new Date(timestamp);
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+// Rebuild the unconfirmed future from an actual attempt/confirmation time.
+export function remainingPlan(settings, cycle, remainingMl, anchorAt) {
+  if (!Number.isInteger(remainingMl) || remainingMl <= 0) return [];
+  const anchor = Math.max(anchorAt, cycle.startAt);
+  if (anchor >= cycle.endAt) return [];
+  const times = [];
+  for (let at = anchor + INTERVAL_MINUTES * 60000; at < cycle.endAt; at += INTERVAL_MINUTES * 60000) times.push(at);
+  times.push(cycle.endAt);
+  const allowed = times.filter(at => {
+    const date = new Date(at);
+    return !isRestTime(settings, date.getHours() * 60 + date.getMinutes());
+  });
+  const count = Math.min(allowed.length, remainingMl);
+  let cumulativeMl = 0;
+  return Array.from({length: count}, (_, index) => {
+    // When only a few millilitres remain, spread nonzero portions through the window.
+    const at = allowed[Math.ceil((index + 1) * allowed.length / count) - 1];
+    const amountMl = Math.floor(remainingMl / count) + (index < remainingMl % count ? 1 : 0);
+    cumulativeMl += amountMl;
+    return {at, time: clockLabel(at), index: index + 1, count, amountMl, cumulativeMl, totalMl: settings.totalMl, cycleKey: cycle.key};
+  });
+}
+
+export function nextAllowedTime(settings, cycle, earliestAt) {
+  let at = Math.max(earliestAt, cycle.startAt);
+  while (at <= cycle.endAt) {
+    const date = new Date(at);
+    if (!isRestTime(settings, date.getHours() * 60 + date.getMinutes())) return at;
+    at = Math.floor(at / 60000) * 60000 + 60000;
+  }
+  return null;
+}
+
+export function nextRetryAt(settings, cycle, now) {
+  return nextAllowedTime(settings, cycle, now + RETRY_MINUTES * 60000);
 }

@@ -1,10 +1,41 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {DEFAULT_SETTINGS, plan, validateSettings, nextReminder, isRestTime} from '../schedule.mjs';
+import {DEFAULT_SETTINGS, plan, validateSettings, nextReminder, isRestTime, currentCycle, followingCycle, remainingPlan, nextRetryAt} from '../schedule.mjs';
 
 const settings = overrides => ({...DEFAULT_SETTINGS, ...overrides});
 const localDate = (day, hour, minute = 0) => new Date(2026, 9, day, hour, minute);
 const rest = (startTime, endTime) => ({startTime, endTime});
+
+test('确认时间为新的半小时起点，尾段对齐结束，整数剩余量精确均分', () => {
+  const cycle = currentCycle(DEFAULT_SETTINGS, localDate(14, 9));
+  const slots = remainingPlan(DEFAULT_SETTINGS, cycle, 1888, localDate(14, 9, 37).getTime());
+  assert.equal(slots[0].time, '10:07');
+  assert.equal(slots.at(-1).time, '18:00');
+  assert.equal(slots.reduce((sum, slot) => sum + slot.amountMl, 0), 1888);
+  assert.ok(slots.every(slot => slot.amountMl > 0));
+  assert.deepEqual(remainingPlan(DEFAULT_SETTINGS, cycle, 0, cycle.startAt), []);
+  assert.deepEqual(remainingPlan(DEFAULT_SETTINGS, cycle, 100, cycle.endAt), []);
+});
+
+test('极少剩余毫升也不会生成 0 ml 提醒，覆盖末次有效时点', () => {
+  const cycle = currentCycle(DEFAULT_SETTINGS, localDate(14, 9));
+  const slots = remainingPlan(DEFAULT_SETTINGS, cycle, 3, cycle.startAt);
+  assert.equal(slots.length, 3);
+  assert.ok(slots.every(slot => slot.amountMl === 1));
+  assert.equal(slots.at(-1).time, '18:00');
+});
+
+test('五分钟重试避开重叠休息，跨午夜正确，结束之后无催促', () => {
+  const current = settings({restPeriods: [rest('09:32', '09:45'), rest('09:40', '10:00')]});
+  const cycle = currentCycle(current, localDate(14, 9));
+  assert.equal(nextRetryAt(current, cycle, localDate(14, 9, 30).getTime()), localDate(14, 10).getTime());
+  assert.equal(nextRetryAt(current, cycle, localDate(14, 17, 56).getTime()), null);
+  const night = settings({startTime: '23:00', endTime: '01:00', restPeriods: [rest('23:55', '00:15')]});
+  const nightCycle = currentCycle(night, localDate(14, 23, 50));
+  assert.equal(nextRetryAt(night, nightCycle, localDate(14, 23, 50).getTime()), localDate(15, 0, 15).getTime());
+  assert.equal(currentCycle(night, localDate(15, 0, 30)).key, nightCycle.key);
+  assert.equal(followingCycle(night, nightCycle).startAt, localDate(15, 23).getTime());
+});
 
 test('午休跳过开始时点，结束时恢复，并将总量均分到剩余 16 次', () => {
   const current = settings({restPeriods: [rest('12:00', '13:00')]});

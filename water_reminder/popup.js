@@ -4,6 +4,7 @@ import {ANIMATION_ORIGINS} from './animation.mjs';
 const $ = id => document.getElementById(id);
 let savedSettings;
 let busy = false;
+let awaitingReminderId = null;
 
 function formSettings() {
   return validateSettings({
@@ -95,7 +96,20 @@ function renderState(state) {
   $('status').textContent = state.settings.enabled ? '提醒已开启' : '已暂停';
   $('status').classList.toggle('active', state.settings.enabled);
   const next = state.nextReminder;
-  if (next) {
+  const awaiting = state.awaitingReminder;
+  awaitingReminderId = awaiting?.id ?? null;
+  $('confirm-button').hidden = !awaiting;
+  $('confirm-button').textContent = awaiting ? `已喝完 ${awaiting.amountMl} ml，确认本次` : '已喝完，确认本次';
+  document.querySelector('.next-card').classList.toggle('waiting', Boolean(awaiting));
+  $('progress-detail').textContent = `${state.progress.cycleKey} 本轮已确认 ${state.progress.confirmedMl} / ${state.settings.totalMl} ml · 剩余 ${Math.max(0, state.settings.totalMl - state.progress.confirmedMl)} ml`;
+  if (awaiting) {
+    $('next-label').textContent = '这杯水还在等你确认';
+    $('next-amount').textContent = `${awaiting.amountMl} ml`;
+    $('next-time').textContent = '待确认';
+    $('next-detail').textContent = !state.settings.enabled ? '提醒已暂停，喝完后仍可在这里确认。'
+      : next?.kind === 'retry' ? `未确认将于 ${next.time} 再次提醒；后续计划等待本次确认。`
+        : '本轮没有可用的催促时点，仍可确认这杯水；下一轮重新开始。';
+  } else if (next) {
     const date = new Date(next.at);
     const today = new Date();
     const tomorrow = new Date(today);
@@ -104,7 +118,7 @@ function renderState(state) {
     $('next-label').textContent = '下一次喝水';
     $('next-amount').textContent = `${next.amountMl} ml`;
     $('next-time').textContent = `${dayLabel} ${next.time}`;
-    $('next-detail').textContent = `第 ${next.index}/${next.count} 次提醒 · 按计划累计应喝 ${next.cumulativeMl} ml`;
+    $('next-detail').textContent = `第 ${next.index}/${next.count} 次提醒 · 喝完后确认，未确认每 5 分钟再提醒。`;
   } else {
     $('next-label').textContent = '给自己一点休息';
     $('next-amount').textContent = '已暂停';
@@ -115,13 +129,44 @@ function renderState(state) {
   $('notification-warning').textContent = '通知权限未开启，请在系统通知设置中允许 Google Chrome 发送通知。';
   $('last-error').hidden = !state.lastError;
   $('last-error').textContent = state.lastError ? `最近一次提醒状态：${state.lastError}` : '';
+  const rows = [
+    ...(awaiting ? [{...awaiting, time: '待确认', cumulativeMl: state.progress.confirmedMl + awaiting.amountMl}] : []),
+    ...state.upcomingPlan
+  ];
+  $('live-plan-count').textContent = `${rows.length} 次`;
+  $('live-plan-list').replaceChildren(...rows.map(slot => {
+    const row = document.createElement('li');
+    const time = document.createElement('span');
+    const nextDay = slot.at && new Date(slot.at).toDateString() !== new Date(state.progress.startAt).toDateString();
+    time.textContent = `${slot.time !== '待确认' && nextDay ? '次日 ' : ''}${slot.time}`;
+    const amount = document.createElement('strong');
+    amount.textContent = `${slot.amountMl} ml`;
+    row.append(time, amount);
+    return row;
+  }));
 }
 
 function setBusy(value) {
   busy = value;
   $('settings-fields').disabled = value;
   $('test-button').disabled = value;
+  $('confirm-button').disabled = value;
 }
+
+$('confirm-button').addEventListener('click', async () => {
+  if (busy || !awaitingReminderId) return;
+  const reminderId = awaitingReminderId;
+  setBusy(true);
+  try {
+    const state = await request('confirmReminder', {reminderId});
+    renderState(state);
+    feedback(state.confirmed ? '已记录本次饮水，后续时间和水量已重新安排。' : '这次提醒已处理，请查看当前计划。');
+  } catch (error) {
+    feedback(error.message, true);
+  } finally {
+    setBusy(false);
+  }
+});
 
 $('settings-form').addEventListener('input', preview);
 $('add-rest').addEventListener('click', () => {
@@ -194,4 +239,4 @@ setInterval(async () => {
   } catch (error) {
     feedback(error.message, true);
   }
-}, 30000);
+}, 10000);

@@ -6,12 +6,18 @@ const reportError = error => console.error('喝水提醒：', error);
 chrome.runtime.onInstalled.addListener(() => controller.initialize().catch(reportError));
 chrome.runtime.onStartup.addListener(() => controller.initialize().catch(reportError));
 chrome.alarms.onAlarm.addListener(alarm => controller.onAlarm(alarm).catch(reportError));
+chrome.notifications.onClicked.addListener(id => controller.confirmNotification(id).catch(reportError));
+chrome.notifications.onButtonClicked.addListener((id, index) => {
+  if (index === 0) controller.confirmNotification(id).catch(reportError);
+});
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) return;
   const actions = {
     getState: () => controller.getState(),
     saveSettings: () => controller.saveSettings(message.settings),
-    testNotification: () => controller.testNotification()
+    testNotification: () => controller.testNotification(),
+    confirmReminder: () => controller.confirmReminder(message.reminderId),
+    dismissTestReminder: () => controller.dismissTestReminder()
   };
   if (!Object.hasOwn(actions, message?.action)) return;
   actions[message.action]().then(

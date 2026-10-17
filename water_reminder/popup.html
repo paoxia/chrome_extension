@@ -17,7 +17,15 @@
       <div class="eyebrow" id="next-label">下一次喝水</div>
       <div class="next-main"><strong id="next-amount">—</strong><span id="next-time">正在读取计划</span></div>
       <p id="next-detail">每半小时提醒一次，慢慢完成每日目标。</p>
+      <button id="confirm-button" class="primary confirm-drink" type="button" hidden>已喝完，确认本次</button>
+      <p id="progress-detail"></p>
     </section>
+
+    <details id="live-plan-details">
+      <summary>当前剩余计划 <span id="live-plan-count"></span></summary>
+      <p class="preview-note">未确认每 5 分钟催促；下次确认后会重新安排。</p>
+      <ol id="live-plan-list" aria-label="当前剩余饮水计划"></ol>
+    </details>
 
     <form id="settings-form">
       <fieldset id="settings-fields" disabled>
@@ -35,7 +43,7 @@
           <div id="rest-periods"></div>
           <button id="add-rest" type="button" class="add-rest">＋ 添加休息时间</button>
         </details>
-        <label class="toggle-row" for="animation-enabled"><span><strong>网页动画提醒</strong><small>当前网页显示水滴动画，15 秒后自动消失</small></span><input id="animation-enabled" name="animationEnabled" type="checkbox" role="switch"><span class="switch" aria-hidden="true"></span></label>
+        <label class="toggle-row" for="animation-enabled"><span><strong>网页动画提醒</strong><small>哆啦 A 梦提醒，喝完后手动确认</small></span><input id="animation-enabled" name="animationEnabled" type="checkbox" role="switch"><span class="switch" aria-hidden="true"></span></label>
         <label class="toggle-row" for="enabled"><span><strong>开启每日提醒</strong><small>每天重复，按电脑本地时间</small></span><input id="enabled" name="enabled" type="checkbox" role="switch"><span class="switch" aria-hidden="true"></span></label>
         <button type="submit" class="primary" id="save-button">保存提醒计划</button>
       </fieldset>

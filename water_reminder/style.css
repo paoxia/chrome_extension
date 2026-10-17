@@ -15,6 +15,10 @@ h1 { margin: 0 0 5px; font-size: 19px; letter-spacing: -.5px; }
 .next-main strong { font-size: 30px; font-weight: 650; color: #126b95; letter-spacing: -1.5px; }
 .next-main span { font-size: 12px; color: #487489; }
 .next-card p { margin: 0; font-size: 11px; line-height: 1.6; color: #5e8392; }
+.next-card .confirm-drink { margin: 12px 0; padding: 10px; }
+.next-card #progress-detail { margin-top: 9px; }
+.next-card.waiting { border-color: #eed9b0; background: linear-gradient(130deg, #fff7e8, #f4fbfd); }
+#live-plan-details { margin: 0 0 18px; }
 fieldset { padding: 0; margin: 0; border: 0; min-width: 0; }
 label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
 input[type="number"], input[type="time"] { width: 100%; min-width: 0; height: 40px; border: 1px solid #dbe4ec; border-radius: 10px; padding: 8px 12px; font: inherit; font-size: 16px; background: #fff; color: #223547; }
