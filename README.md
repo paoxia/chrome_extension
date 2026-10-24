@@ -1,6 +1,15 @@
 # Chrome 浏览器扩展集合
 
-本项目包含多个实用的 Chrome 浏览器扩展，帮助您提高工作效率和浏览体验。
+本项目包含 6 个独立的 Chrome Manifest V3 扩展，覆盖网站屏蔽、AI 阅读、稍后观看管理、工作流计时、媒体下载和喝水提醒。各扩展可单独安装，无需构建。
+
+| 扩展 | 目录 | 当前版本 | 核心功能 |
+| --- | --- | --- | --- |
+| 网站屏蔽工具 | [`block_site`](block_site/) | 1.0.0 | 屏蔽当前网站并管理屏蔽列表 |
+| AI 阅读器 | [`web_reader`](web_reader/README.md) | 2.0.0 | 网页摘要、页面内翻译、OpenAI 兼容接口与本机 Codex |
+| Bilibili 助手 | [`bilibili_helper`](bilibili_helper/) | 1.1.0 | 批量加入稍后观看，自动跳过已添加视频 |
+| 工作流倒计时 | [`workflow_timer`](workflow_timer/) | 1.0.0 | 多步骤计时、系统通知与提示音 |
+| 网页媒体下载器 | [`media_downloader`](media_downloader/) | 2.1.0 | 视频与图片检测、图片批量下载、迅雷下载 |
+| 喝水提醒 | [`water_reminder`](water_reminder/README.md) | 1.2.0 | 饮水确认、5 分钟催促、剩余计划重排与网页动画 |
 
 ## 📦 扩展列表
 
@@ -34,9 +43,9 @@
 **主要功能：**
 - 📖 自动提取网页主要内容并生成摘要
 - 🌏 将译文直接嵌入网页，支持原文、双语、译文三种状态切换
-- 🤖 支持 OpenAI 风格的 API（OpenAI、Azure、第三方代理等）
+- 🤖 支持提供 `/models` 和 `/chat/completions` 的 OpenAI 兼容接口
 - 💻 支持 Windows、macOS、Linux 上通过 Chrome Native Messaging 自动调用本地 Codex CLI，无需常驻服务
-- 🌐 支持所有网页（除 Chrome 内置页面）
+- 🌐 支持普通网页，Chrome 内置页、扩展商店等受保护页面除外
 - ⚙️ 可配置 AI 服务、模型、目标语言和默认翻译模式
 - 🔄 后台处理，关闭弹窗也能继续运行
 - ✅ 连接测试功能，方便排查问题
@@ -54,6 +63,8 @@
 - 支持一次安装、按需启动的 Codex Native Messaging Host
 - 页面译文以 DOM 增强方式展示，可随时移除并恢复原文
 - 配置信息本地存储，保护隐私
+
+首次使用需配置 AI 服务；选择本机 Codex 时还需安装 Native Host。安装命令、系统依赖及页面翻译说明详见 [AI 阅读器说明](web_reader/README.md)。网页文本会发送到所选模型服务，本机调用 Codex 仍需连接模型服务。
 
 ---
 
@@ -89,12 +100,12 @@ Bilibili 稍后观看批量管理工具：从关注的 UP 主动态中拉取自�
 
 ### 4. 工作流倒计时 (workflow_timer)
 
-支持多步骤工作流的倒计时工具，按顺序执行一组定时任务，配合系统通知提醒切换步骤。
+支持多步骤工作流的倒计时工具，为各步骤设置时长，配合系统通知提醒切换步骤。
 
 **主要功能：**
 - ⏱ 自定义多步骤工作流（每步可设独立时长）
 - 🔔 步骤切换时系统通知提醒
-- 🔁 通过 `chrome.alarms` 在后台精确驱动倒计时，关闭弹窗仍正常运行
+- 🔁 后台 Service Worker 维护倒计时，弹窗打开时同步显示进度
 - 🔊 借助 offscreen 文档播放提示音（突破 Service Worker 不能直接播放音频的限制）
 
 **使用场景：**
@@ -104,9 +115,11 @@ Bilibili 稍后观看批量管理工具：从关注的 UP 主动态中拉取自�
 
 **技术特点：**
 - 使用 Manifest V3
-- `chrome.alarms` + `chrome.notifications` 实现可靠的后台调度与提醒
+- 使用 `setInterval` 更新倒计时，通过 `chrome.notifications` 发送完成通知
 - 使用 Offscreen API 处理音频播放
-- 状态保存在 `chrome.storage`，浏览器重启后可恢复
+- 状态保存在 `chrome.storage.local`，后台重新启动后读取已保存的剩余秒数
+
+当前实现按秒递减，Service Worker 休眠、浏览器退出或电脑休眠可能使计时停滞；恢复时不会扣除停机期间经过的时间。
 
 ---
 
@@ -120,7 +133,7 @@ Bilibili 稍后观看批量管理工具：从关注的 UP 主动态中拉取自�
 - 🖼️ 图片模式：扫描 `<img>`、`srcset`、CSS 背景图、链接、脚本和 HTML 中的图片地址
 - 📊 图片支持按 KB 过滤、隐藏未知大小，并在缩略图上显示文件大小
 - ✅ 图片支持多选、全选当前过滤结果和批量下载，并保留单张点击下载
-- 📁 支持 MP4、WebM、MKV、AVI、MOV、FLV、WMV、OGG、M3U8 及常见图片格式
+- 📁 检测 MP4、WebM、MKV、AVI、MOV、FLV、WMV、OGG、M3U8 等视频资源地址及常见图片格式
 - 🔁 页面导航时自动清理旧资源，视频和图片过滤设置分别持久化保存
 
 **使用场景：**
@@ -137,21 +150,24 @@ Bilibili 稍后观看批量管理工具：从关注的 UP 主动态中拉取自�
 - 两个独立 Content Script 分别负责视频和图片扫描，避免检测逻辑互相干扰
 - Service Worker 利用 `host_permissions: <all_urls>` 跨域 `fetch` 获取图片大小（优先 `Content-Length` 头，缺失则回退读取 `blob.size`），并以 4 路并发异步填充
 - Twitter 图片使用浏览器原生下载流程，避免受限请求头导致任务创建失败
-- 视频和图片信息分别存储在 `chrome.storage.local`，1小时后自动清理
+- 视频和图片信息分别存储在 `chrome.storage.local`，后台恢复缓存时过滤超过 1 小时的记录
+
+使用迅雷下载前需安装并运行迅雷客户端，目前仅支持 HTTP / HTTPS 视频地址。检测到 M3U8 地址不代表会自动合并视频分片。
 
 ---
 
 ### 6. 喝水提醒 (water_reminder)
 
-设置每日饮水目标和提醒时段，每半小时通过系统通知提醒本次应该喝多少水。
+设置每日饮水目标和提醒时段，按 30 分钟间隔安排饮水；每杯喝完后手动确认，未确认时每 5 分钟再次提醒，并动态重排剩余计划。
 
 **主要功能：**
 - 💧 自定义每日总饮水量（ml）、开始时间和结束时间
-- 🔔 每 30 分钟提醒，自动均分总量，末次对齐结束时间
+- 🔔 初始计划从开始时间 30 分钟后提醒，自动均分总量；结束时间不在休息段内时，末次对齐结束时间
 - 🌙 支持跨午夜时段，每天重复提醒
 - 💤 可设置多段不喝水的休息时间，自动跳过并重新分配目标总量
 - 💦 可选哆啦 A 梦喝水动画，显示本次饮水量，手动确认后关闭
-- ✅ 喝完后手动确认，未确认每 5 分钟催促，剩余时间和水量自动重排
+- ✅ 在系统通知、插件面板或网页动画中确认已喝完；只有确认后才计入饮水量
+- 🔁 未确认每 5 分钟催促同一杯，水量不累加；确认后以实际确认时间重新安排下一杯
 - 📋 预览完整计划、下一次提醒时间及本次应喝水量
 - ⏸ 暂停 / 恢复提醒，提供测试通知
 - 💾 本地保存设置，关闭弹窗继续运行，浏览器重启后恢复计划
@@ -159,9 +175,10 @@ Bilibili 稍后观看批量管理工具：从关注的 UP 主动态中拉取自�
 **技术特点：**
 - 使用 Manifest V3 与 `chrome.alarms`、`chrome.notifications`
 - 网页访问权限按需授权，用于显示动画；无需读取网页内容或联网
-- 休眠后跳过较早的遗漏提醒，不集中补发
+- 休眠恢复后同一杯最多补一次提醒，不集中补发多杯；Chrome 完全退出或电脑休眠期间无法通知
+- 到结束时间停止催促，未确认水量不会自动计入，也不会叠加到下一天
 
-安装和分配规则详见 [喝水提醒说明](water_reminder/README.md)。
+需要 Chrome 116 或更新版本。默认目标为 **2000 ml，09:00–18:00**，网页动画默认关闭。安装、确认方式、休息时段和分配规则详见 [喝水提醒说明](water_reminder/README.md)。
 
 ---
 
@@ -175,6 +192,21 @@ Bilibili 稍后观看批量管理工具：从关注的 UP 主动态中拉取自�
 4. 点击"加载已解压的扩展程序"
 5. 选择对应的扩展文件夹
 6. 扩展安装完成！
+
+每次只选择一个包含 `manifest.json` 的扩展目录，例如 `water_reminder`，不要选择仓库根目录。可重复操作安装其他扩展。
+
+### 首次使用
+
+- **网站屏蔽工具**：打开目标网站，在扩展弹窗中添加屏蔽；移除后可恢复访问。
+- **AI 阅读器**：配置 OpenAI 兼容接口，或按[子模块说明](web_reader/README.md)安装本机 Codex Native Host，再测试连接。
+- **Bilibili 助手**：先在浏览器中登录 Bilibili，再从齿轮入口设置时间范围并批量加入稍后观看。
+- **工作流倒计时**：创建工作流和各步骤时长，启动计时，并允许 Chrome 显示系统通知。
+- **网页媒体下载器**：打开目标网页，切换视频 / 图片标签查看资源；使用迅雷时先启动客户端。
+- **喝水提醒**：设置目标、时段和休息时间，点击「保存提醒计划」，用「发送测试通知」验证提醒。开启网页动画时需授予网页访问权限。
+
+### 更新扩展
+
+更新代码后，在 `chrome://extensions/` 点击对应扩展的重新加载按钮。涉及网页脚本或样式的更新，还需刷新目标网页。
 
 ---
 
@@ -193,10 +225,10 @@ chrome_extension/
 │
 ├── web_reader/              # AI 阅读器
 │   ├── manifest.json        # 扩展配置文件
-  │   ├── background.js        # Service Worker
-  │   ├── content.js           # Content Script
-  │   ├── content.css          # 页面内翻译样式和模式控制条
-  │   ├── native_host/         # 本地 Codex Native Messaging Host 与安装脚本
+│   ├── background.js        # Service Worker
+│   ├── content.js           # Content Script
+│   ├── content.css          # 页面内翻译样式和模式控制条
+│   ├── native_host/         # 本地 Codex Native Messaging Host 与安装脚本
 │   ├── popup.html           # 弹窗界面
 │   ├── popup.js             # 弹窗逻辑
 │   ├── README.md            # 子模块说明
@@ -215,7 +247,7 @@ chrome_extension/
 │
 ├── workflow_timer/          # 工作流倒计时
 │   ├── manifest.json        # 扩展配置文件
-│   ├── background.js        # Service Worker（alarms 调度）
+│   ├── background.js        # Service Worker（按秒计时与通知）
 │   ├── popup.html           # 弹窗界面
 │   ├── popup.js             # 弹窗逻辑
 │   ├── offscreen.html       # Offscreen 文档（音频播放载体）
@@ -234,10 +266,10 @@ chrome_extension/
 │   ├── image-popup.js       # 图片过滤和缩略图逻辑
 │   └── icon.png             # 扩展图标
 │
-├── water_reminder/         # 喝水提醒
+├── water_reminder/          # 喝水提醒
 │   ├── manifest.json        # 扩展配置文件
 │   ├── background.js        # Service Worker 事件入口
-│   ├── controller.mjs       # 后台调度、恢复与通知
+│   ├── controller.mjs       # 后台调度、饮水确认、催促与恢复
 │   ├── schedule.mjs         # 时间与饮水量分配
 │   ├── animation.mjs        # 哆啦 A 梦喝水动画与按需注入
 │   ├── popup.html           # 弹窗界面
@@ -259,7 +291,20 @@ chrome_extension/
 
 - **Chrome Extension Manifest V3**
 - **JavaScript (ES6+)**
-- **Chrome APIs**: `declarativeNetRequest`, `storage`, `cookies`, `tabs`, `activeTab`, `alarms`, `notifications`, `scripting`, `offscreen`, `downloads`, `webRequest`
+- **Chrome APIs**: `declarativeNetRequest`, `storage`, `cookies`, `tabs`, `activeTab`, `alarms`, `notifications`, `scripting`, `offscreen`, `downloads`, `webRequest`, `nativeMessaging`
+- **可选本机组件**：Codex CLI 与 Native Messaging Host（AI 阅读器）、迅雷客户端（视频迅雷下载）
+
+---
+
+## 🧪 开发验证
+
+喝水提醒包含无需第三方依赖的自动测试。在仓库根目录使用 Node.js 18 或更新版本执行：
+
+```sh
+node --test water_reminder/tests/*.test.mjs
+```
+
+测试覆盖时间与水量分配、跨午夜、多段休息、饮水确认去重、5 分钟催促、计划重排、暂停恢复及动画兜底。其余扩展可通过加载已解压扩展，在目标网页中手动验证对应功能。
 
 ---
 
