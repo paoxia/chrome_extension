@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>喝水提醒</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <div class="brand"><img src="icons/icon48.png" alt="" width="40" height="40"><div><h1>喝水提醒</h1><p>给忙碌的一天，留一点水分。</p></div></div>
+      <span id="status" class="status">加载中</span>
+    </header>
+
+    <section class="next-card" aria-label="下一次提醒">
+      <div class="eyebrow" id="next-label">下一次喝水</div>
+      <div class="next-main"><strong id="next-amount">—</strong><span id="next-time">正在读取计划</span></div>
+      <p id="next-detail">每半小时提醒一次，慢慢完成每日目标。</p>
+      <button id="confirm-button" class="primary confirm-drink" type="button" hidden>已喝完，确认本次</button>
+      <p id="progress-detail"></p>
+    </section>
+
+    <details id="live-plan-details">
+      <summary>当前剩余计划 <span id="live-plan-count"></span></summary>
+      <p class="preview-note">未确认每 5 分钟催促；下次确认后会重新安排。</p>
+      <ol id="live-plan-list" aria-label="当前剩余饮水计划"></ol>
+    </details>
+
+    <form id="settings-form">
+      <fieldset id="settings-fields" disabled>
+        <label for="total-ml">每日饮水目标</label>
+        <div class="amount-input"><input id="total-ml" name="totalMl" type="number" min="1" max="20000" step="1" required inputmode="numeric"><span>ml / 天</span></div>
+        <div class="time-fields">
+          <div><label for="start-time">开始时间</label><input id="start-time" name="startTime" type="time" required></div>
+          <span class="time-divider" aria-hidden="true">→</span>
+          <div><label for="end-time">结束时间</label><input id="end-time" name="endTime" type="time" required></div>
+        </div>
+        <p id="plan-summary" class="plan-summary"></p>
+        <details id="rest-details" class="rest-settings">
+          <summary>休息时间，不提醒 <span id="rest-count">未设置</span></summary>
+          <p class="preview-note">可添加多段；开始时停止提醒，结束时恢复原计划。</p>
+          <div id="rest-periods"></div>
+          <button id="add-rest" type="button" class="add-rest">＋ 添加休息时间</button>
+        </details>
+        <label class="toggle-row" for="animation-enabled"><span><strong>网页动画提醒</strong><small>哆啦 A 梦提醒，喝完后手动确认</small></span><input id="animation-enabled" name="animationEnabled" type="checkbox" role="switch"><span class="switch" aria-hidden="true"></span></label>
+        <label class="toggle-row" for="enabled"><span><strong>开启每日提醒</strong><small>每天重复，按电脑本地时间</small></span><input id="enabled" name="enabled" type="checkbox" role="switch"><span class="switch" aria-hidden="true"></span></label>
+        <button type="submit" class="primary" id="save-button">保存提醒计划</button>
+      </fieldset>
+    </form>
+    <p id="feedback" class="feedback" role="status" aria-live="polite"></p>
+    <p id="notification-warning" class="warning" hidden></p>
+    <p id="last-error" class="warning" hidden></p>
+
+    <details id="plan-details">
+      <summary>查看完整饮水计划 <span id="plan-count"></span></summary>
+      <p class="preview-note">以下按表单设置预览，保存后生效。</p>
+      <ol id="plan-list" aria-label="饮水计划"></ol>
+    </details>
+    <footer><button id="test-button" type="button" disabled>发送测试通知 ↗</button><p>关闭弹窗也能提醒；Chrome 退出或电脑休眠时无法通知。</p></footer>
+  </main>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
