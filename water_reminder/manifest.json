@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "喝水提醒",
+  "version": "1.3.0",
+  "description": "设置饮水目标与时段，喝完后提醒起身活动，支持统一自定义休息时长和未确认催促。",
+  "minimum_chrome_version": "116",
+  "permissions": ["storage", "alarms", "notifications", "scripting"],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "web_accessible_resources": [{
+    "resources": ["assets/doraemon-water.png"],
+    "matches": ["http://*/*", "https://*/*"]
+  }],
+  "icons": {"16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png"},
+  "action": {
+    "default_title": "喝水提醒",
+    "default_popup": "popup.html",
+    "default_icon": {"16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png"}
+  },
+  "background": {"service_worker": "background.js", "type": "module"}
+}
