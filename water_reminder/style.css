@@ -26,6 +26,8 @@ input:focus-visible, button:focus-visible, summary:focus-visible { outline: 3px 
 .amount-input { position: relative; margin-bottom: 14px; }
 .amount-input input { padding-right: 90px; }
 .amount-input span { position: absolute; right: 14px; top: 12px; color: #7b8c9b; font-size: 12px; pointer-events: none; }
+.activity-input { margin-bottom: 0; }
+#activity-note { margin: 6px 0 14px; line-height: 1.6; }
 .time-fields { display: grid; grid-template-columns: 1fr 24px 1fr; gap: 8px; align-items: end; }
 .time-divider { height: 40px; display: grid; place-items: center; color: #8fa2b2; }
 .plan-summary { font-size: 11px; color: #687f90; line-height: 1.6; min-height: 18px; margin: 8px 0 14px; }

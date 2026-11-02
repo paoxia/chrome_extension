@@ -6,6 +6,16 @@ const settings = overrides => ({...DEFAULT_SETTINGS, ...overrides});
 const localDate = (day, hour, minute = 0) => new Date(2026, 9, day, hour, minute);
 const rest = (startTime, endTime) => ({startTime, endTime});
 
+test('活动休息时长默认五分钟，可关闭，拒绝非法数值', () => {
+  const {activityRestMinutes, ...legacy} = DEFAULT_SETTINGS;
+  assert.equal(validateSettings(legacy).activityRestMinutes, 5);
+  assert.equal(validateSettings(settings({activityRestMinutes: 0})).activityRestMinutes, 0);
+  assert.equal(validateSettings(settings({activityRestMinutes: 120})).activityRestMinutes, 120);
+  for (const value of [-1, 1.5, 121, null, '5', NaN, Infinity, true]) {
+    assert.throws(() => validateSettings(settings({activityRestMinutes: value})), /活动休息时长/);
+  }
+});
+
 test('确认时间为新的半小时起点，尾段对齐结束，整数剩余量精确均分', () => {
   const cycle = currentCycle(DEFAULT_SETTINGS, localDate(14, 9));
   const slots = remainingPlan(DEFAULT_SETTINGS, cycle, 1888, localDate(14, 9, 37).getTime());

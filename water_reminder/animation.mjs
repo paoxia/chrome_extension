@@ -3,6 +3,7 @@ export const ANIMATION_ORIGINS = ['http://*/*', 'https://*/*'];
 // This function is serialized by chrome.scripting; keep it self-contained.
 export async function showWaterAnimation(reminder) {
   if (document.visibilityState === 'hidden' || !document.documentElement) return false;
+  const activity = reminder.kind === 'activity';
   const hostId = 'water-reminder-animation-root';
   document.getElementById(hostId)?.dispatchEvent(new Event('water-reminder-dismiss'));
 
@@ -60,8 +61,13 @@ export async function showWaterAnimation(reminder) {
       <p class="confirmation-note"></p>
     </section>`;
   // Insert data as text, never as page HTML.
-  shadow.getElementById('amount').textContent = String(reminder.amountMl);
-  shadow.querySelector('.detail').textContent = reminder.test
+  shadow.getElementById('amount').textContent = activity ? '' : String(reminder.amountMl);
+  if (activity) {
+    shadow.querySelector('h2').textContent = '起来活动一下';
+    shadow.querySelector('.eyebrow').textContent = '哆啦 A 梦的活动提醒';
+    shadow.querySelector('.unit').textContent = '';
+  }
+  shadow.querySelector('.detail').textContent = activity ? `站起来走走、伸展一下，休息 ${reminder.minutes} 分钟。` : reminder.test
     ? '测试提醒 · 和哆啦 A 梦一起喝水'
     : `已确认 ${reminder.confirmedMl} / ${reminder.totalMl} ml${reminder.attempts > 1 ? ` · 第 ${reminder.attempts} 次催促` : ''}`;
 
@@ -75,13 +81,15 @@ export async function showWaterAnimation(reminder) {
   }
   if (document.visibilityState === 'hidden') return false;
 
-  const dismiss = () => host.remove();
+  let countdown;
+  const dismiss = () => { clearInterval(countdown); host.remove(); };
   host.addEventListener('water-reminder-dismiss', dismiss, {once: true});
   const button = shadow.querySelector('.confirm');
   const note = shadow.querySelector('.confirmation-note');
-  button.textContent = reminder.test ? '确认测试提醒' : `已喝完 ${reminder.amountMl} ml`;
-  note.textContent = reminder.test ? '测试不计入饮水量，不会开启重复催促。' : '未确认每 5 分钟再提醒，确认后重新安排后续计划。';
+  button.textContent = activity ? '收起提醒，继续休息' : reminder.test ? '确认测试提醒' : `已喝完 ${reminder.amountMl} ml`;
+  note.textContent = activity ? '休息结束后重新计算下一次喝水间隔。' : reminder.test ? '测试不计入饮水量，不会开启重复催促。' : '未确认每 5 分钟再提醒，确认后重新安排后续计划。';
   button.addEventListener('click', async () => {
+    if (activity) { dismiss(); return; }
     button.disabled = true;
     try {
       const response = await chrome.runtime.sendMessage(reminder.test
@@ -94,8 +102,22 @@ export async function showWaterAnimation(reminder) {
       button.disabled = false;
     }
   });
+  if (activity) {
+    const update = () => {
+      const seconds = Math.max(0, Math.ceil((reminder.endAt - Date.now()) / 1000));
+      shadow.getElementById('amount').textContent = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+      if (!seconds) dismiss();
+    };
+    if (reminder.endAt <= Date.now()) return false;
+    update();
+    countdown = setInterval(update, 1000);
+  }
   document.documentElement.append(host);
   return true;
+}
+
+export function showActivityInActiveTab(api, activity) {
+  return showAnimationInActiveTab(api, {...activity, kind: 'activity'});
 }
 
 export function dismissWaterAnimation(reminderId) {

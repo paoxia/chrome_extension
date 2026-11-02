@@ -4,11 +4,13 @@ import {createController, ALARM_PREFIX} from '../controller.mjs';
 import {DEFAULT_SETTINGS} from '../schedule.mjs';
 import {showWaterAnimation} from '../animation.mjs';
 
+const SETTINGS = {...DEFAULT_SETTINGS, activityRestMinutes: 0};
+
 const at = (hour, minute = 0, day = 14) => new Date(2026, 9, day, hour, minute);
 const rest = (startTime, endTime) => ({startTime, endTime});
-function fixture() {
+function fixture(settings = SETTINGS) {
   let time = at(9), permission = 'granted', failNotification = false;
-  const data = {}, alarms = new Map(), notifications = [], activeNotifications = new Map();
+  const data = {settings: structuredClone(settings)}, alarms = new Map(), notifications = [], activeNotifications = new Map();
   const animations = [], dismissed = [], clearedNotifications = [];
   const api = {
     storage: {local: {
@@ -41,7 +43,7 @@ function fixture() {
     setTime: value => {time = value;}, setPermission: value => {permission = value;},
     failNotification: () => {failNotification = true;},
     restart: () => createController(api, () => new Date(time)),
-    fire: async () => {const alarm = [...alarms.values()][0]; assert.ok(alarm); alarms.delete(alarm.name); await controller.onAlarm(alarm); return alarm;},
+    fire: async () => {const alarm = [...alarms.values()].sort((a, b) => a.scheduledTime - b.scheduledTime)[0]; assert.ok(alarm); alarms.delete(alarm.name); await controller.onAlarm(alarm); return alarm;},
     confirm: () => controller.confirmReminder(data.progress.awaiting.id)
   };
 }
@@ -54,7 +56,7 @@ function assertBudget(state) {
 test('首次启动分配 18 次，重复启动不重排，闹钟丢失可恢复', async () => {
   const f = fixture();
   const initial = await f.controller.initialize();
-  assert.deepEqual(f.data.settings, DEFAULT_SETTINGS);
+  assert.deepEqual(f.data.settings, SETTINGS);
   assert.equal(initial.nextReminder.time, '09:30');
   assert.equal(initial.upcomingPlan.length, 18);
   assertBudget(initial);
@@ -70,7 +72,7 @@ test('首次启动分配 18 次，重复启动不重排，闹钟丢失可恢复'
 test('中途保存不同饮水日的时段，从当前剩余时间分配，不安排过去的首次提醒', async () => {
   const f = fixture();
   f.setTime(at(2)); await f.controller.initialize();
-  const state = await f.controller.saveSettings({...DEFAULT_SETTINGS, totalMl: 900, startTime: '01:00', endTime: '04:00'});
+  const state = await f.controller.saveSettings({...SETTINGS, totalMl: 900, startTime: '01:00', endTime: '04:00'});
   assert.equal(state.nextReminder.time, '02:30');
   assert.equal(state.nextReminder.amountMl, 225);
   assert.equal(state.upcomingPlan.length, 4);
@@ -172,7 +174,7 @@ test('关掉系统通知不代表已喝，五分钟仍会再次提醒', async ()
 
 test('五分钟催促遇到休息则等到休息结束，确认后计划也避开休息', async () => {
   const f = fixture();
-  await f.controller.saveSettings({...DEFAULT_SETTINGS, restPeriods: [rest('09:31', '10:00'), rest('12:00', '13:00')]});
+  await f.controller.saveSettings({...SETTINGS, restPeriods: [rest('09:31', '10:00'), rest('12:00', '13:00')]});
   f.setTime(at(9, 30)); await f.fire();
   assert.equal(f.data.pendingReminder.kind, 'retry');
   assert.equal(f.data.pendingReminder.time, '10:00');
@@ -184,7 +186,7 @@ test('五分钟催促遇到休息则等到休息结束，确认后计划也避�
 });
 
 test('延迟的首次提醒落入休息时移动至结束时点并重新均分', async () => {
-  const f = fixture(); await f.controller.saveSettings({...DEFAULT_SETTINGS, restPeriods: [rest('09:31', '10:00')]});
+  const f = fixture(); await f.controller.saveSettings({...SETTINGS, restPeriods: [rest('09:31', '10:00')]});
   f.setTime(at(9, 32)); await f.fire();
   assert.equal(f.notifications.length, 0);
   assert.equal(f.data.pendingReminder.time, '10:00');
@@ -198,9 +200,9 @@ test('延迟的首次提醒落入休息时移动至结束时点并重新均分',
 test('暂停保留待确认与已喝记录，停止催促，恢复后重排且仍需确认', async () => {
   const f = fixture(); await f.controller.initialize(); f.setTime(at(9, 30)); await f.fire();
   const id = f.data.progress.awaiting.id;
-  await f.controller.saveSettings({...DEFAULT_SETTINGS, enabled: false});
+  await f.controller.saveSettings({...SETTINGS, enabled: false});
   assert.equal(f.alarms.size, 0); assert.equal(f.data.progress.awaiting.id, id);
-  f.setTime(at(9, 45)); await f.controller.saveSettings({...DEFAULT_SETTINGS, enabled: true});
+  f.setTime(at(9, 45)); await f.controller.saveSettings({...SETTINGS, enabled: true});
   assert.equal(f.data.pendingReminder.time, '09:50');
   assert.equal(f.data.progress.awaiting.id, id);
   await f.confirm(); assert.equal(f.data.progress.confirmedMl, 112);
@@ -211,9 +213,9 @@ test('保存设置保留已确认量与当前杯，目标不能小于已确认�
   f.setTime(at(10)); await f.fire(); const id = f.data.progress.awaiting.id;
   const budget = f.data.progress.confirmedMl + f.data.progress.awaiting.amountMl;
   const before = structuredClone(f.data);
-  await assert.rejects(f.controller.saveSettings({...DEFAULT_SETTINGS, totalMl: budget - 1}), /不能低于/);
+  await assert.rejects(f.controller.saveSettings({...SETTINGS, totalMl: budget - 1}), /不能低于/);
   assert.deepEqual(f.data, before);
-  const state = await f.controller.saveSettings({...DEFAULT_SETTINGS, totalMl: 2500, restPeriods: [rest('12:00', '13:00')]});
+  const state = await f.controller.saveSettings({...SETTINGS, totalMl: 2500, restPeriods: [rest('12:00', '13:00')]});
   assert.equal(state.progress.confirmedMl, 112); assert.equal(state.awaitingReminder.id, id); assertBudget(state);
 });
 
@@ -239,7 +241,7 @@ test('休眠恢复只提醒同一杯一次，不自动计入已喝，不集中�
 });
 
 test('结束时间后不再催促，保留当前待确认；最后一次可晚确认，下一轮完整新目标', async () => {
-  const f = fixture(); await f.controller.saveSettings({...DEFAULT_SETTINGS, endTime: '09:30'});
+  const f = fixture(); await f.controller.saveSettings({...SETTINGS, endTime: '09:30'});
   f.setTime(at(9, 30)); await f.fire();
   assert.equal(f.data.progress.awaiting.amountMl, 2000);
   assert.equal(f.data.pendingReminder.at, at(9, 30, 15).getTime());
@@ -249,9 +251,9 @@ test('结束时间后不再催促，保留当前待确认；最后一次可晚�
 });
 
 test('最后一次闹钟允许正常毫秒延迟；明显超出结束时段不补发', async () => {
-  const f = fixture(); await f.controller.saveSettings({...DEFAULT_SETTINGS, endTime: '09:30'});
+  const f = fixture(); await f.controller.saveSettings({...SETTINGS, endTime: '09:30'});
   f.setTime(new Date(at(9, 30).getTime() + 100)); await f.fire(); assert.equal(f.notifications.length, 1);
-  const g = fixture(); await g.controller.saveSettings({...DEFAULT_SETTINGS, endTime: '09:30'});
+  const g = fixture(); await g.controller.saveSettings({...SETTINGS, endTime: '09:30'});
   g.setTime(at(10)); await g.fire(); assert.equal(g.notifications.length, 0);
   assert.equal(g.data.pendingReminder.at, at(9, 30, 15).getTime());
 });
@@ -268,7 +270,7 @@ test('新一轮记录上一轮已确认和未确认量，不把遗忘的水量�
 
 test('跨午夜期间属于同一饮水日，午夜后五分钟催促和确认正确重排', async () => {
   const f = fixture(); f.setTime(at(23));
-  await f.controller.saveSettings({...DEFAULT_SETTINGS, totalMl: 1000, startTime: '23:00', endTime: '01:00'});
+  await f.controller.saveSettings({...SETTINGS, totalMl: 1000, startTime: '23:00', endTime: '01:00'});
   f.setTime(at(23, 30)); await f.fire(); const key = f.data.progress.cycleKey;
   f.setTime(at(0, 5, 15)); await f.fire();
   assert.equal(f.data.progress.cycleKey, key); assert.equal(f.data.progress.awaiting.amountMl, 250);
@@ -295,7 +297,7 @@ test('系统通知失败仍保留待确认并五分钟重试，面板确认仍�
 });
 
 test('通知拒绝时仍可显示动画，动画确认后清理所有相关标签页；网页不可注入仍发系统通知', async () => {
-  const f = fixture(); await f.controller.saveSettings({...DEFAULT_SETTINGS, animationEnabled: true}); f.setPermission('denied');
+  const f = fixture(); await f.controller.saveSettings({...SETTINGS, animationEnabled: true}); f.setPermission('denied');
   f.setTime(at(9, 30)); await f.fire(); assert.equal(f.animations.length, 1); assert.equal(f.data.lastReminder.animationShown, true);
   const id = f.data.progress.awaiting.id; assert.equal(f.animations[0].id, id);
   await f.confirm(); assert.ok(f.dismissed.includes(id)); assert.equal(f.data.progress.confirmedMl, 112);
@@ -305,9 +307,146 @@ test('通知拒绝时仍可显示动画，动画确认后清理所有相关标�
 
 test('无效设置不更改现有记录和闹钟；旧设置仍兼容关闭动画', async () => {
   const f = fixture(); await f.controller.initialize(); const before = structuredClone(f.data);
-  await assert.rejects(f.controller.saveSettings({...DEFAULT_SETTINGS, restPeriods: [rest('09:00', '18:01')]}), /覆盖/);
+  await assert.rejects(f.controller.saveSettings({...SETTINGS, restPeriods: [rest('09:00', '18:01')]}), /覆盖/);
   assert.deepEqual(f.data, before); assert.equal(f.alarms.size, 1);
-  const {animationEnabled, ...legacy} = DEFAULT_SETTINGS;
+  const {animationEnabled, ...legacy} = SETTINGS;
   await f.controller.saveSettings(legacy); assert.equal(f.data.settings.animationEnabled, false);
   assert.ok([...f.alarms.keys()].every(name => name.startsWith(ALARM_PREFIX)));
+});
+
+test('默认喝完后活动五分钟，从休息结束重新计算喝水间隔，重复确认不重复休息', async () => {
+  const f = fixture(DEFAULT_SETTINGS); await f.controller.initialize();
+  f.setTime(at(9, 30)); await f.fire();
+  assert.equal(f.data.pendingReminder.time, '09:35');
+  const id = f.data.progress.awaiting.id;
+  f.setTime(at(9, 37)); const state = await f.confirm();
+  assert.equal(state.activityBreak.minutes, 5);
+  assert.equal(state.activityBreak.endAt, at(9, 42).getTime());
+  assert.equal(state.nextReminder.time, '10:12');
+  assert.equal(state.progress.confirmedMl, 112);
+  assert.equal(f.alarms.size, 2);
+  assert.match(f.notifications.at(-1).options.title, /起来活动 5 分钟/);
+  assert.equal(f.activeNotifications.size, 1);
+  assertBudget(state);
+  assert.equal((await f.controller.confirmReminder(id)).confirmed, false);
+  assert.equal((await f.controller.confirmNotification(f.notifications.at(-1).id)).confirmed, false);
+  assert.equal(f.notifications.length, 2);
+  assert.deepEqual(f.data.progress.activityBreak, state.activityBreak);
+});
+
+test('自定义活动时长每次一致，到期清理提醒，下一杯喝完再开始同样休息', async () => {
+  const f = fixture({...DEFAULT_SETTINGS, activityRestMinutes: 7, animationEnabled: true});
+  await f.controller.initialize(); f.setTime(at(9, 30)); await f.fire();
+  f.setTime(at(9, 37)); const state = await f.confirm();
+  assert.equal(state.activityBreak.endAt, at(9, 44).getTime());
+  assert.equal(state.nextReminder.time, '10:14');
+  assert.equal(f.animations.at(-1).kind, 'activity');
+  assert.equal(f.animations.at(-1).endAt, state.activityBreak.endAt);
+  f.setTime(at(9, 44)); await f.fire();
+  assert.equal(f.data.progress.activityBreak, null);
+  assert.equal(f.activeNotifications.size, 0);
+  assert.ok(f.dismissed.includes(state.activityBreak.id));
+  assert.equal(f.alarms.size, 1);
+  assert.equal(f.notifications.length, 2);
+  f.setTime(at(10, 14)); await f.fire();
+  assert.equal(f.data.pendingReminder.time, '10:19');
+  f.setTime(at(10, 16)); const next = await f.confirm();
+  assert.equal(next.activityBreak.minutes, 7);
+  assert.equal(next.activityBreak.endAt, at(10, 23).getTime());
+  assert.equal(next.nextReminder.time, '10:53');
+  assertBudget(next);
+});
+
+test('休息期间重启恢复结束和喝水闹钟，不重置倒计时，不重复活动通知', async () => {
+  const f = fixture(DEFAULT_SETTINGS); await f.controller.initialize();
+  f.setTime(at(9, 30)); await f.fire(); await f.confirm();
+  const activity = structuredClone(f.data.progress.activityBreak);
+  f.setTime(at(9, 32)); f.alarms.clear();
+  const restarted = f.restart(); const state = await restarted.initialize();
+  assert.deepEqual(state.activityBreak, activity);
+  assert.equal(state.nextReminder.time, '10:05');
+  assert.equal(f.alarms.size, 2);
+  assert.equal(f.notifications.length, 2);
+  f.setTime(at(9, 40)); const expired = await restarted.getState();
+  assert.equal(expired.activityBreak, null);
+  assert.equal(expired.nextReminder.time, '10:05');
+  assert.equal(f.alarms.size, 1);
+});
+
+test('修改休息时长只影响下一次，暂停恢复保留当前休息结束时间', async () => {
+  const f = fixture(DEFAULT_SETTINGS); await f.controller.initialize();
+  f.setTime(at(9, 30)); await f.fire(); await f.confirm();
+  f.setTime(at(9, 32));
+  let state = await f.controller.saveSettings({...DEFAULT_SETTINGS, activityRestMinutes: 10, enabled: false});
+  assert.equal(f.alarms.size, 0);
+  assert.equal(state.activityBreak.endAt, at(9, 35).getTime());
+  assert.equal(f.activeNotifications.size, 0);
+  state = await f.controller.saveSettings({...DEFAULT_SETTINGS, activityRestMinutes: 10});
+  assert.equal(state.nextReminder.time, '10:05');
+  f.setTime(at(9, 35)); await f.fire();
+  f.setTime(at(10, 5)); await f.fire(); state = await f.confirm();
+  assert.equal(state.activityBreak.minutes, 10);
+  assert.equal(state.activityBreak.endAt, at(10, 15).getTime());
+  assert.equal(state.nextReminder.time, '10:45');
+});
+
+test('活动跨午夜与免打扰时段，休息结束后计划避开免打扰，不丢失确认量', async () => {
+  const f = fixture({...DEFAULT_SETTINGS, activityRestMinutes: 10, startTime: '23:00', endTime: '02:00', restPeriods: [rest('00:30', '01:00')]});
+  f.setTime(at(23)); await f.controller.initialize();
+  f.setTime(at(23, 30)); await f.fire();
+  f.setTime(at(23, 55)); const state = await f.confirm();
+  assert.equal(state.activityBreak.endAt, at(0, 5, 15).getTime());
+  assert.equal(state.nextReminder.at, at(1, 5, 15).getTime());
+  assertBudget(state);
+});
+
+test('活动提醒发送失败不撤销喝水确认，面板仍显示休息倒计时', async () => {
+  const f = fixture(DEFAULT_SETTINGS); await f.controller.initialize();
+  f.setTime(at(9, 30)); await f.fire(); f.failNotification();
+  const state = await f.confirm();
+  assert.equal(state.confirmed, true);
+  assert.equal(state.progress.confirmedMl, 112);
+  assert.equal(state.activityBreak.endAt, at(9, 35).getTime());
+  assert.equal(state.nextReminder.time, '10:05');
+  assert.match(state.lastError, /活动提醒/);
+});
+
+test('休息跨越饮水结束时间不在休息内补发，结束后保留下一轮计划', async () => {
+  const f = fixture({...DEFAULT_SETTINGS, endTime: '09:30'}); await f.controller.initialize();
+  f.setTime(at(9, 30)); await f.fire(); const state = await f.confirm();
+  assert.equal(state.activityBreak.endAt, at(9, 35).getTime());
+  assert.equal(state.nextReminder.at, at(9, 30, 15).getTime());
+  assert.deepEqual(state.upcomingPlan, []);
+  f.setTime(at(9, 35)); await f.fire();
+  assert.equal(f.data.progress.activityBreak, null);
+  assert.equal(f.data.pendingReminder.at, at(9, 30, 15).getTime());
+  assert.equal(f.data.progress.confirmedMl, 2000);
+});
+
+test('活动跨入新饮水日仍等休息结束再计时，上一轮水量不叠加', async () => {
+  const f = fixture({...DEFAULT_SETTINGS, startTime: '09:00', endTime: '08:59', activityRestMinutes: 120});
+  await f.controller.initialize(); f.setTime(at(8, 58, 15)); await f.fire();
+  const confirmed = await f.confirm();
+  assert.equal(confirmed.activityBreak.endAt, at(10, 58, 15).getTime());
+  assert.equal(confirmed.nextReminder.at, at(11, 28, 15).getTime());
+  f.setTime(at(9, 0, 15)); const state = await f.controller.getState();
+  assert.equal(state.progress.confirmedMl, 0);
+  assert.equal(state.activityBreak.endAt, confirmed.activityBreak.endAt);
+  assert.equal(state.nextReminder.at, at(11, 28, 15).getTime());
+  assertBudget(state);
+});
+
+test('暂停期间确认及测试通知都不触发活动休息，非法设置不改动计时', async () => {
+  const f = fixture(DEFAULT_SETTINGS); await f.controller.initialize();
+  await f.controller.testNotification();
+  assert.equal(f.data.progress.activityBreak, null);
+  f.setTime(at(9, 30)); await f.fire();
+  await f.controller.saveSettings({...DEFAULT_SETTINGS, enabled: false});
+  const state = await f.confirm();
+  assert.equal(state.activityBreak, null);
+  assert.equal(f.alarms.size, 0);
+  assert.equal(f.notifications.length, 2);
+  const before = structuredClone(f.data);
+  await assert.rejects(f.controller.saveSettings({...DEFAULT_SETTINGS, activityRestMinutes: -1}), /活动休息时长/);
+  assert.deepEqual(f.data, before);
 });

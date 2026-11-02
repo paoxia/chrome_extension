@@ -1,5 +1,6 @@
 export const DEFAULT_SETTINGS = Object.freeze({
-  totalMl: 2000, startTime: '09:00', endTime: '18:00', enabled: true, restPeriods: Object.freeze([]), animationEnabled: false
+  totalMl: 2000, startTime: '09:00', endTime: '18:00', enabled: true, restPeriods: Object.freeze([]), animationEnabled: false,
+  activityRestMinutes: 5
 });
 export const INTERVAL_MINUTES = 30;
 export const RETRY_MINUTES = 5;
@@ -39,6 +40,10 @@ export function validateSettings(value) {
   if (typeof value.enabled !== 'boolean') throw new Error('提醒开关无效。');
   const animationEnabled = value.animationEnabled === undefined ? false : value.animationEnabled;
   if (typeof animationEnabled !== 'boolean') throw new Error('网页动画开关无效。');
+  const activityRestMinutes = value.activityRestMinutes === undefined ? DEFAULT_SETTINGS.activityRestMinutes : value.activityRestMinutes;
+  if (!Number.isInteger(activityRestMinutes) || activityRestMinutes < 0 || activityRestMinutes > 120) {
+    throw new Error('活动休息时长请输入 0–120 之间的整数（分钟），0 表示关闭。');
+  }
   const periods = value.restPeriods === undefined ? [] : value.restPeriods;
   if (!Array.isArray(periods)) throw new Error('休息时间设置无效。');
   const restPeriods = periods.map((period, index) => {
@@ -52,7 +57,7 @@ export function validateSettings(value) {
     }
     return {startTime: period.startTime, endTime: period.endTime};
   });
-  const valid = {totalMl: value.totalMl, startTime: value.startTime, endTime: value.endTime, enabled: value.enabled, restPeriods, animationEnabled};
+  const valid = {totalMl: value.totalMl, startTime: value.startTime, endTime: value.endTime, enabled: value.enabled, restPeriods, animationEnabled, activityRestMinutes};
   const count = reminderOffsets(valid).length;
   if (count === 0) throw new Error('休息时间覆盖了全部提醒，请缩短休息时间或调整饮水时段。');
   if (value.totalMl < count) throw new Error(`此时段有 ${count} 次提醒，目标至少需要 ${count} ml。`);

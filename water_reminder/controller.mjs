@@ -2,7 +2,7 @@ import {
   DEFAULT_SETTINGS, validateSettings, plan, currentCycle, followingCycle,
   remainingPlan, nextRetryAt, nextAllowedTime, clockLabel, isRestTime, INTERVAL_MINUTES
 } from './schedule.mjs';
-import {showAnimationInActiveTab, dismissAnimationInTabs} from './animation.mjs';
+import {showAnimationInActiveTab, showActivityInActiveTab, dismissAnimationInTabs} from './animation.mjs';
 
 export const ALARM_PREFIX = 'water-reminder:';
 export const NOTIFICATION_ID = 'water-reminder';
@@ -16,12 +16,14 @@ export function createController(api, clock = () => new Date()) {
     return result;
   };
   const alarmName = pending => `${ALARM_PREFIX}${pending.kind}:${pending.cycleKey}:${pending.reminderId ?? ''}:${pending.at}`;
+  const activityAlarmName = activity => `${ALARM_PREFIX}activity:${activity.id}:${activity.endAt}`;
 
   function newProgress(cycle, now, previous, hasScheduledReminder) {
     return {
       cycleKey: cycle.key, startAt: cycle.startAt, endAt: cycle.endAt,
-      anchorAt: hasScheduledReminder ? cycle.startAt : Math.max(cycle.startAt, now),
-      confirmedMl: 0, entries: [], awaiting: null, sequence: previous?.sequence ?? 0
+      anchorAt: Math.max(hasScheduledReminder ? cycle.startAt : Math.max(cycle.startAt, now), previous?.activityBreak?.endAt ?? 0),
+      confirmedMl: 0, entries: [], awaiting: null, sequence: previous?.sequence ?? 0,
+      activityBreak: previous?.activityBreak ?? null
     };
   }
 
@@ -68,6 +70,10 @@ export function createController(api, clock = () => new Date()) {
     }
     progress.startAt = cycle.startAt;
     progress.endAt = cycle.endAt;
+    if (progress.activityBreak && progress.activityBreak.endAt <= now) {
+      await clearReminder(progress.activityBreak);
+      progress.activityBreak = null;
+    }
     if (force) pending = null;
     const upcomingPlan = futurePlan(current, progress);
     if (progress.awaiting) progress.awaiting.count = progress.entries.length + 1 + upcomingPlan.length;
@@ -91,23 +97,28 @@ export function createController(api, clock = () => new Date()) {
       if (!pending && !progress.awaiting && inWindow) pending = upcomingPlan[0] ?? null;
       if (!pending) {
         const nextCycle = followingCycle(current, cycle);
-        const next = remainingPlan(current, nextCycle, current.totalMl, nextCycle.startAt)[0];
+        const next = remainingPlan(current, nextCycle, current.totalMl, Math.max(nextCycle.startAt, progress.activityBreak?.endAt ?? 0))[0];
         pending = next ? {...next, kind: 'drink'} : null;
       }
     }
     const name = pending ? alarmName(pending) : null;
+    const activityName = current.enabled && progress.activityBreak ? activityAlarmName(progress.activityBreak) : null;
     for (const alarm of await api.alarms.getAll()) {
-      if (alarm.name.startsWith(ALARM_PREFIX) && alarm.name !== name) await api.alarms.clear(alarm.name);
+      if (alarm.name.startsWith(ALARM_PREFIX) && alarm.name !== name && alarm.name !== activityName) await api.alarms.clear(alarm.name);
     }
     await api.storage.local.set({settings: current, progress, pendingReminder: pending});
     if (pending && !await api.alarms.get(name)) {
       await api.alarms.create(name, {when: Math.max(pending.at, now + 1000)});
     }
+    if (activityName && !await api.alarms.get(activityName)) {
+      await api.alarms.create(activityName, {when: progress.activityBreak.endAt});
+    }
     const waiting = Boolean(progress.awaiting);
-    await api.action.setBadgeText({text: !current.enabled ? 'Ⅱ' : waiting ? '!' : ''});
+    await api.action.setBadgeText({text: !current.enabled ? 'Ⅱ' : waiting ? '!' : progress.activityBreak ? '休' : ''});
     await api.action.setBadgeBackgroundColor({color: waiting ? '#d88827' : '#64748b'});
-    await api.action.setTitle({title: !current.enabled ? '喝水提醒 · 已暂停' : waiting ? '喝水提醒 · 等待确认已喝完' : '喝水提醒 · 每半小时一杯水'});
-    return {settings: current, progress, awaitingReminder: progress.awaiting, nextReminder: pending, upcomingPlan};
+    await api.action.setTitle({title: !current.enabled ? '喝水提醒 · 已暂停' : waiting ? '喝水提醒 · 等待确认已喝完'
+      : progress.activityBreak ? `喝水提醒 · 活动休息至 ${clockLabel(progress.activityBreak.endAt)}` : '喝水提醒 · 每半小时一杯水'});
+    return {settings: current, progress, awaitingReminder: progress.awaiting, activityBreak: progress.activityBreak, nextReminder: pending, upcomingPlan};
   }
 
   async function state() {
@@ -158,11 +169,38 @@ export function createController(api, clock = () => new Date()) {
     progress.confirmedMl += awaiting.amountMl;
     progress.entries.push({id: awaiting.id, amountMl: awaiting.amountMl, confirmedAt: clock().getTime()});
     progress.awaiting = null;
-    progress.anchorAt = clock().getTime();
+    const now = clock().getTime();
+    const minutes = current.settings.enabled ? current.settings.activityRestMinutes : 0;
+    progress.activityBreak = minutes > 0 ? {
+      id: `activity:${awaiting.id}`, startAt: now, endAt: now + minutes * 60000, minutes,
+      notificationIds: [], animationTabIds: []
+    } : null;
+    progress.anchorAt = progress.activityBreak?.endAt ?? now;
     await api.storage.local.set({progress, pendingReminder: null, lastError: null});
     await clearReminder(awaiting);
     await reconcile(true);
+    if (progress.activityBreak) await notifyActivity(progress.activityBreak, current.settings);
     return {confirmed: true, ...await state()};
+  }
+
+  async function notifyActivity(activity, settings) {
+    const [notification, animation] = await Promise.allSettled([
+      (async () => {
+        if (await api.notifications.getPermissionLevel() !== 'granted') throw new Error('通知权限未开启，请允许 Chrome 发送系统通知。');
+        return api.notifications.create({
+          type: 'basic', iconUrl: api.runtime.getURL('icons/icon128.png'),
+          title: `喝完水啦，起来活动 ${activity.minutes} 分钟`,
+          message: `站起来走走、伸展一下，休息到 ${clockLabel(activity.endAt)}。休息结束后重新计算下一次喝水间隔。`,
+          requireInteraction: false, priority: 1
+        });
+      })(),
+      settings.animationEnabled ? showActivityInActiveTab(api, activity) : Promise.resolve({shown: false})
+    ]);
+    const {progress} = await api.storage.local.get('progress');
+    if (progress?.activityBreak?.id !== activity.id) return;
+    if (notification.status === 'fulfilled') progress.activityBreak.notificationIds.push(notification.value);
+    if (animation.status === 'fulfilled' && animation.value.shown) progress.activityBreak.animationTabIds.push(animation.value.tabId);
+    await api.storage.local.set({progress, lastError: notification.status === 'rejected' ? `活动提醒：${notification.reason.message}` : null});
   }
 
   async function dismissTest() {
@@ -194,9 +232,10 @@ export function createController(api, clock = () => new Date()) {
         throw new Error(`新目标不能低于已确认和待确认的合计 ${progress.confirmedMl + (progress.awaiting?.amountMl ?? 0)} ml。`);
       }
       if (progress && sameCycle) {
-        progress.anchorAt = clock().getTime();
+        progress.anchorAt = Math.max(clock().getTime(), progress.activityBreak?.endAt ?? 0);
         await api.storage.local.set({progress});
         if (!valid.enabled || !valid.animationEnabled) await clearReminder(progress.awaiting);
+        if (!valid.enabled || !valid.animationEnabled) await clearReminder(progress.activityBreak);
       }
       await api.storage.local.set({settings: valid, pendingReminder: null, lastError: null});
       await reconcile(true);
@@ -213,6 +252,10 @@ export function createController(api, clock = () => new Date()) {
     }),
     onAlarm: alarm => run(async () => {
       if (!alarm.name.startsWith(ALARM_PREFIX)) return;
+      if (alarm.name.startsWith(`${ALARM_PREFIX}activity:`)) {
+        await reconcile();
+        return;
+      }
       const {pendingReminder: saved} = await api.storage.local.get('pendingReminder');
       if (!saved || alarm.name !== alarmName(saved)) return;
       const current = await reconcile();

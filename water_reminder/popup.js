@@ -5,10 +5,18 @@ const $ = id => document.getElementById(id);
 let savedSettings;
 let busy = false;
 let awaitingReminderId = null;
+let activityEndAt = null;
+
+function renderActivityCountdown() {
+  if (activityEndAt === null) return;
+  const seconds = Math.max(0, Math.ceil((activityEndAt - Date.now()) / 1000));
+  $('next-amount').textContent = seconds ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : '休息结束';
+}
 
 function formSettings() {
   return validateSettings({
     totalMl: Number($('total-ml').value),
+    activityRestMinutes: Number($('activity-rest-minutes').value),
     startTime: $('start-time').value, endTime: $('end-time').value, enabled: $('enabled').checked,
     restPeriods: Array.from($('rest-periods').children, row => ({
       startTime: row.querySelector('.rest-start').value,
@@ -93,10 +101,12 @@ function preview() {
 
 function renderState(state) {
   savedSettings = state.settings;
-  $('status').textContent = state.settings.enabled ? '提醒已开启' : '已暂停';
+  $('status').textContent = state.settings.enabled ? state.activityBreak ? '活动休息中' : '提醒已开启' : '已暂停';
   $('status').classList.toggle('active', state.settings.enabled);
   const next = state.nextReminder;
   const awaiting = state.awaitingReminder;
+  const activity = state.activityBreak;
+  activityEndAt = !awaiting && activity ? activity.endAt : null;
   awaitingReminderId = awaiting?.id ?? null;
   $('confirm-button').hidden = !awaiting;
   $('confirm-button').textContent = awaiting ? `已喝完 ${awaiting.amountMl} ml，确认本次` : '已喝完，确认本次';
@@ -109,6 +119,12 @@ function renderState(state) {
     $('next-detail').textContent = !state.settings.enabled ? '提醒已暂停，喝完后仍可在这里确认。'
       : next?.kind === 'retry' ? `未确认将于 ${next.time} 再次提醒；后续计划等待本次确认。`
         : '本轮没有可用的催促时点，仍可确认这杯水；下一轮重新开始。';
+  } else if (activity) {
+    $('next-label').textContent = '喝完水，起来活动一下';
+    renderActivityCountdown();
+    $('next-time').textContent = `${activity.minutes} 分钟休息`;
+    const endTime = new Date(activity.endAt).toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit', hour12: false});
+    $('next-detail').textContent = `站起来走走、伸展一下，休息到 ${endTime}。${state.settings.enabled ? '结束后重新计算下一次喝水间隔。' : '提醒已暂停。'}`;
   } else if (next) {
     const date = new Date(next.at);
     const today = new Date();
@@ -160,7 +176,7 @@ $('confirm-button').addEventListener('click', async () => {
   try {
     const state = await request('confirmReminder', {reminderId});
     renderState(state);
-    feedback(state.confirmed ? '已记录本次饮水，后续时间和水量已重新安排。' : '这次提醒已处理，请查看当前计划。');
+    feedback(state.confirmed ? state.activityBreak ? `已记录本次饮水，起来活动 ${state.activityBreak.minutes} 分钟吧。` : '已记录本次饮水，后续时间和水量已重新安排。' : '这次提醒已处理，请查看当前计划。');
   } catch (error) {
     feedback(error.message, true);
   } finally {
@@ -215,6 +231,7 @@ async function initialize() {
   try {
     const state = await request('getState');
     $('total-ml').value = state.settings.totalMl;
+    $('activity-rest-minutes').value = state.settings.activityRestMinutes;
     $('start-time').value = state.settings.startTime;
     $('end-time').value = state.settings.endTime;
     $('enabled').checked = state.settings.enabled;
@@ -230,6 +247,7 @@ async function initialize() {
 }
 
 initialize();
+setInterval(renderActivityCountdown, 1000);
 
 // Keep the next reminder current if the popup stays open across a time slot.
 setInterval(async () => {

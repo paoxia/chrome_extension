@@ -23,7 +23,7 @@
 
     <details id="live-plan-details">
       <summary>当前剩余计划 <span id="live-plan-count"></span></summary>
-      <p class="preview-note">未确认每 5 分钟催促；下次确认后会重新安排。</p>
+      <p class="preview-note">未确认每 5 分钟催促；确认后先活动休息，再重新计算喝水间隔。</p>
       <ol id="live-plan-list" aria-label="当前剩余饮水计划"></ol>
     </details>
 
@@ -31,6 +31,9 @@
       <fieldset id="settings-fields" disabled>
         <label for="total-ml">每日饮水目标</label>
         <div class="amount-input"><input id="total-ml" name="totalMl" type="number" min="1" max="20000" step="1" required inputmode="numeric"><span>ml / 天</span></div>
+        <label for="activity-rest-minutes">喝水后的活动休息时长</label>
+        <div class="amount-input activity-input"><input id="activity-rest-minutes" name="activityRestMinutes" type="number" min="0" max="120" step="1" required inputmode="numeric" aria-describedby="activity-note"><span>分钟 / 次</span></div>
+        <p id="activity-note" class="preview-note">点击「已喝完」后提醒起身活动，每次休息时长一致。休息结束后重新计算 30 分钟喝水间隔；0 表示关闭。修改后从下次休息生效。</p>
         <div class="time-fields">
           <div><label for="start-time">开始时间</label><input id="start-time" name="startTime" type="time" required></div>
           <span class="time-divider" aria-hidden="true">→</span>
@@ -38,10 +41,10 @@
         </div>
         <p id="plan-summary" class="plan-summary"></p>
         <details id="rest-details" class="rest-settings">
-          <summary>休息时间，不提醒 <span id="rest-count">未设置</span></summary>
+          <summary>免打扰时段，不提醒 <span id="rest-count">未设置</span></summary>
           <p class="preview-note">可添加多段；开始时停止提醒，结束时恢复原计划。</p>
           <div id="rest-periods"></div>
-          <button id="add-rest" type="button" class="add-rest">＋ 添加休息时间</button>
+          <button id="add-rest" type="button" class="add-rest">＋ 添加免打扰时段</button>
         </details>
         <label class="toggle-row" for="animation-enabled"><span><strong>网页动画提醒</strong><small>哆啦 A 梦提醒，喝完后手动确认</small></span><input id="animation-enabled" name="animationEnabled" type="checkbox" role="switch"><span class="switch" aria-hidden="true"></span></label>
         <label class="toggle-row" for="enabled"><span><strong>开启每日提醒</strong><small>每天重复，按电脑本地时间</small></span><input id="enabled" name="enabled" type="checkbox" role="switch"><span class="switch" aria-hidden="true"></span></label>
@@ -54,7 +57,7 @@
 
     <details id="plan-details">
       <summary>查看完整饮水计划 <span id="plan-count"></span></summary>
-      <p class="preview-note">以下按表单设置预览，保存后生效。</p>
+      <p class="preview-note">以下为初始计划，不含确认后的活动休息；实际安排以「当前剩余计划」为准。</p>
       <ol id="plan-list" aria-label="饮水计划"></ol>
     </details>
     <footer><button id="test-button" type="button" disabled>发送测试通知 ↗</button><p>关闭弹窗也能提醒；Chrome 退出或电脑休眠时无法通知。</p></footer>
